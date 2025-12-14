@@ -84,7 +84,7 @@
         .sortable-item:active { cursor: grabbing; }
         .sortable-ghost { opacity: 0.4; background: #e0e7ff; border: 2px dashed #6366f1; }
 
-        /* 縦書き */
+        /* 縦書き（旧レイアウト用だが念のため保持） */
         .vertical-text-container {
             height: 140px;
             display: flex;
@@ -152,7 +152,7 @@
                     <i class="fas fa-clipboard-check text-2xl"></i>
                     <span class="font-bold text-lg tracking-tight text-slate-800">Store Check</span>
                 </div>
-                <div class="text-xs text-slate-400 font-mono">v2.3</div>
+                <div class="text-xs text-slate-400 font-mono">v2.4</div>
             </div>
         </header>
 
@@ -1688,10 +1688,21 @@
 
                 if (tasksToShow.length > 0) {
                     const checkGridContainer = document.createElement('div');
-                    checkGridContainer.className = "overflow-x-auto";
-                    let gridHTML = `<div class="grid border border-slate-200 rounded-xl overflow-hidden" style="grid-template-columns: repeat(${tasksToShow.length}, minmax(60px, 1fr));">`;
-                    tasksToShow.forEach(task => gridHTML += `<div class="font-bold text-xs text-slate-600 vertical-text-container p-2 border-r border-b border-slate-100 last:border-r-0 bg-slate-50"><div class="vertical-text">${task.name || 'N/A'}</div></div>`);
-                    tasksToShow.forEach(task => gridHTML += `<div class="flex items-center justify-center p-4 border-r border-slate-100 last:border-r-0 bg-white hover:bg-slate-50 transition-colors"><input type="checkbox" data-task-id="${task.id}" class="w-6 h-6 text-violet-600 bg-slate-100 border-slate-300 rounded focus:ring-violet-500 transition-all cursor-pointer hover:scale-110"></div>`);
+                    
+                    // レスポンシブグリッドレイアウトに変更
+                    let gridHTML = `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">`;
+                    
+                    tasksToShow.forEach(task => {
+                        gridHTML += `
+                        <label class="group flex flex-col items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-violet-50 hover:border-violet-200 hover:shadow-sm transition-all h-full relative overflow-hidden">
+                            <span class="text-xs font-bold text-slate-600 text-center mb-2 leading-tight break-words w-full group-hover:text-violet-700 z-10">${task.name || 'N/A'}</span>
+                            <div class="relative z-10">
+                                <input type="checkbox" data-task-id="${task.id}" class="peer w-6 h-6 text-violet-600 bg-white border-slate-300 rounded focus:ring-violet-500 transition-all cursor-pointer">
+                            </div>
+                            <div class="absolute inset-0 bg-violet-100 opacity-0 peer-checked:opacity-20 transition-opacity"></div>
+                        </label>`;
+                    });
+                    
                     gridHTML += '</div>';
                     checkGridContainer.innerHTML = gridHTML;
                     card.appendChild(checkGridContainer);
