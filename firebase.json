@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "tenpokakuninn-app",
     "public": "public",
     "ignore": [
       "firebase.json",
