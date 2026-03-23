@@ -1243,59 +1243,80 @@
             return { displayTitle: now.toLocaleString('ja-JP'), fileStem: formatPdfFileStem(now) };
         }
 
+        /** 1 ログ分の HTML をキャプチャし、A4 1 ページに収まるよう縮小して PDF に描画する */
+        function addLogPageToPdf(pdf, imgData, canvas) {
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = imgHeight / imgWidth;
+            const totalHeight = pdfWidth * ratio;
+            let drawW = pdfWidth;
+            let drawH = totalHeight;
+            if (drawH > pageHeight) {
+                const scale = pageHeight / drawH;
+                drawW = pdfWidth * scale;
+                drawH = pageHeight;
+            }
+            const x = (pdfWidth - drawW) / 2;
+            pdf.addImage(imgData, 'PNG', x, 0, drawW, drawH);
+        }
+
         async function printHistory(logs, date = null) {
+            if (!logs?.length) {
+                showAppAlert('出力する履歴がありません。', false);
+                return;
+            }
+
             showLoading(true, 'PDFを生成中...');
             const { jsPDF } = window.jspdf;
-
             const { displayTitle, fileStem } = getPdfTitleAndFileStem(date, logs);
-
-            let printContainer = document.createElement('div');
-            printContainer.id = 'print-container-temp';
-            printContainer.style.position = 'absolute';
-            printContainer.style.left = '-9999px';
-            printContainer.style.width = '210mm';
-
-            let printContent = `
-                <div class="p-8">
-                    <h1 class="text-2xl font-bold mb-4">${currentState.storeName}</h1>
-                    <h2 class="text-xl font-semibold mb-6">${currentState.category} - ${displayTitle} 履歴</h2>
-            `;
-            logs.forEach(log => {
-                printContent += generateLogDetailHTML(log, { forPrint: true });
-            });
-            printContent += `</div>`;
-            printContainer.innerHTML = printContent;
-            document.body.appendChild(printContainer);
+            const isBulk = logs.length > 1;
+            const pdf = new jsPDF('p', 'mm', 'a4');
 
             try {
-                const canvas = await html2canvas(printContainer, { scale: 2 });
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const imgWidth = canvas.width;
-                const imgHeight = canvas.height;
-                const ratio = imgHeight / imgWidth;
-                const totalHeight = pdfWidth * ratio;
+                for (let i = 0; i < logs.length; i++) {
+                    const log = logs[i];
+                    showLoading(true, `PDFを生成中... (${i + 1}/${logs.length})`);
 
-                let drawW = pdfWidth;
-                let drawH = totalHeight;
-                if (drawH > pageHeight) {
-                    const scale = pageHeight / drawH;
-                    drawW = pdfWidth * scale;
-                    drawH = pageHeight;
+                    let subtitle;
+                    if (isBulk) {
+                        const logTime = log.createdAt.toDate().toLocaleString('ja-JP');
+                        subtitle = `${currentState.category} - ${logTime} 履歴（${i + 1}/${logs.length}）`;
+                    } else {
+                        subtitle = `${currentState.category} - ${displayTitle} 履歴`;
+                    }
+
+                    const printContainer = document.createElement('div');
+                    printContainer.id = 'print-container-temp';
+                    printContainer.style.position = 'absolute';
+                    printContainer.style.left = '-9999px';
+                    printContainer.style.width = '210mm';
+
+                    printContainer.innerHTML = `
+                <div class="p-8">
+                    <h1 class="text-2xl font-bold mb-4">${currentState.storeName}</h1>
+                    <h2 class="text-xl font-semibold mb-6">${subtitle}</h2>
+                    ${generateLogDetailHTML(log, { forPrint: true })}
+                </div>`;
+
+                    try {
+                        document.body.appendChild(printContainer);
+                        const canvas = await html2canvas(printContainer, { scale: 2 });
+                        const imgData = canvas.toDataURL('image/png');
+                        if (i > 0) pdf.addPage();
+                        addLogPageToPdf(pdf, imgData, canvas);
+                    } finally {
+                        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+                    }
                 }
-                const x = (pdfWidth - drawW) / 2;
-                pdf.addImage(imgData, 'PNG', x, 0, drawW, drawH);
 
                 pdf.save(`${currentState.category}_${fileStem}_履歴.pdf`);
-
             } catch (error) {
-                console.error("PDFの生成に失敗しました:", error);
-                showAppAlert("PDFの生成に失敗しました。", false);
+                console.error('PDFの生成に失敗しました:', error);
+                showAppAlert('PDFの生成に失敗しました。', false);
             } finally {
                 showLoading(false);
-                document.body.removeChild(printContainer);
             }
         }
 
