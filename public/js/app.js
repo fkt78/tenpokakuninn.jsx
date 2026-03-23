@@ -1202,24 +1202,24 @@
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
                 const imgWidth = canvas.width;
                 const imgHeight = canvas.height;
                 const ratio = imgHeight / imgWidth;
-                let height = pdfWidth * ratio;
-                let position = 0;
+                const totalHeight = pdfWidth * ratio;
 
-                if (height > pdf.internal.pageSize.getHeight()) {
-                   let pageHeight = pdf.internal.pageSize.getHeight();
-                   pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, height);
-                   height -= pageHeight;
-                   while (height > 0) {
-                       position -= pageHeight;
-                       pdf.addPage();
-                       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, height);
-                       height -= pageHeight;
-                   }
+                if (totalHeight > pageHeight) {
+                    let y = 0;
+                    pdf.addImage(imgData, 'PNG', 0, y, pdfWidth, totalHeight);
+                    let remaining = totalHeight - pageHeight;
+                    while (remaining > 0) {
+                        y -= pageHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, y, pdfWidth, totalHeight);
+                        remaining -= pageHeight;
+                    }
                 } else {
-                   pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, totalHeight);
                 }
                 
                 pdf.save(`${currentState.category}_${titleDate}_履歴.pdf`);
