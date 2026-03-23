@@ -92,3 +92,42 @@
             border-color: #ef4444 !important;
             background-color: #fef2f2 !important;
         }
+
+        /*
+         * PDF 用温度チェック（#print-container-temp）
+         * Tailwind CDN が JS 内の grid クラスを生成しないことがあり、html2canvas も grid を崩しやすい。
+         * 通常の CSS で flex 多列化する。
+         */
+        #print-container-temp .pdf-temp-grid {
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 10px;
+            width: 100%;
+        }
+        #print-container-temp .pdf-temp-grid.pdf-temp-cols-2 .pdf-temp-card {
+            box-sizing: border-box;
+            flex: 0 0 calc((100% - 10px) / 2);
+            max-width: calc((100% - 10px) / 2);
+        }
+        #print-container-temp .pdf-temp-grid.pdf-temp-cols-3 .pdf-temp-card {
+            box-sizing: border-box;
+            flex: 0 0 calc((100% - 20px) / 3);
+            max-width: calc((100% - 20px) / 3);
+        }
+        #print-container-temp .pdf-temp-card {
+            padding: 0.6rem 0.65rem;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        #print-container-temp .pdf-temp-card .pdf-temp-name {
+            font-weight: 600;
+        }
+        #print-container-temp .pdf-temp-warn {
+            color: #ef4444;
+            font-weight: 700;
+        }

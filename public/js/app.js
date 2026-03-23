@@ -1093,11 +1093,10 @@
             if (category === '温度チェック') {
                 const checks = logData.data.checks || [];
                 const tempGridClass = forPrint
-                    ? (checks.length > 8 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-3')
+                    ? `pdf-temp-grid ${checks.length > 8 ? 'pdf-temp-cols-3' : 'pdf-temp-cols-2'}`
                     : 'flex flex-col space-y-2';
-                const cardClass = forPrint
-                    ? 'p-2.5 bg-gray-50 rounded border border-gray-200 min-w-0 text-sm leading-snug'
-                    : 'p-2 bg-gray-50 rounded mt-2';
+                const cardClass = forPrint ? 'pdf-temp-card' : 'p-2 bg-gray-50 rounded mt-2';
+                const warnClass = forPrint ? 'pdf-temp-warn' : 'text-red-500 font-bold';
                 detailHTML += `<div class="${tempGridClass}">`;
                 checks.forEach(check => {
                     const itemInfo = equipmentMaster[check.equipmentId] || {};
@@ -1105,24 +1104,26 @@
                     const temp_min = parseFloat(itemInfo.temp_min);
                     const temp_max = parseFloat(itemInfo.temp_max);
                     const tempValue = parseFloat(check.temperature);
-                    let tempDisplay = '<span class="text-red-500 font-bold">未入力</span>';
+                    let tempDisplay = `<span class="${warnClass}">未入力</span>`;
                     
                     if (check.temperature !== null) {
-                        const tempClass = (!isNaN(tempValue) && !isNaN(temp_min) && !isNaN(temp_max) && tempValue >= temp_min && tempValue <= temp_max) ? '' : 'text-red-500 font-bold';
-                        tempDisplay = `<span class="${tempClass}">${check.temperature} ℃</span>`;
+                        const tempClass = (!isNaN(tempValue) && !isNaN(temp_min) && !isNaN(temp_max) && tempValue >= temp_min && tempValue <= temp_max) ? '' : warnClass;
+                        tempDisplay = tempClass ? `<span class="${tempClass}">${check.temperature} ℃</span>` : `${check.temperature} ℃`;
                     }
 
                     const needsDrain = itemInfo.manual_drain === true;
                     const drainLine = needsDrain
-                        ? `<p>排水: ${check.drainChecked === true ? '実施' : '<span class="text-red-500 font-bold">未実施</span>'}</p>`
+                        ? `<p>排水: ${check.drainChecked === true ? '実施' : `<span class="${warnClass}">未実施</span>`}</p>`
                         : '';
 
+                    const nameClass = forPrint ? 'pdf-temp-name' : 'font-semibold break-words';
+                    const breakClass = forPrint ? '' : 'break-words';
                     detailHTML += `<div class="${cardClass}">
-                        <p class="font-semibold break-words">${itemName}</p>
+                        <p class="${nameClass}">${itemName}</p>
                         <p>温度: ${tempDisplay}</p>
                         ${drainLine}
-                        <p class="break-words">連絡先: ${check.contact || '未入力'}</p>
-                        <p class="break-words">処置: ${check.action || '未入力'}</p>
+                        <p class="${breakClass}">連絡先: ${check.contact || '未入力'}</p>
+                        <p class="${breakClass}">処置: ${check.action || '未入力'}</p>
                     </div>`;
                 });
                 detailHTML += `</div>`;
