@@ -2,7 +2,7 @@
   "indexes": [
     {
       "collectionGroup": "entries",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "storeId", "order": "ASCENDING" },
         { "fieldPath": "logCategory", "order": "ASCENDING" },
@@ -11,7 +11,7 @@
     },
     {
       "collectionGroup": "handover1Order",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "storeId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
@@ -19,7 +19,7 @@
     },
     {
       "collectionGroup": "handover2Order",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "storeId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
