@@ -1060,7 +1060,8 @@
         }
 
 
-        function generateLogDetailHTML(logData) {
+        function generateLogDetailHTML(logData, options = {}) {
+            const forPrint = options.forPrint === true;
             const time = logData.createdAt.toDate().toLocaleString('ja-JP');
             
             let detailHTML = `<div class="text-left space-y-4 p-4 border-b">
@@ -1090,7 +1091,15 @@
             detailHTML += `<hr>`;
             
             if (category === '温度チェック') {
-                logData.data.checks.forEach(check => {
+                const checks = logData.data.checks || [];
+                const tempGridClass = forPrint
+                    ? (checks.length > 8 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-3')
+                    : 'flex flex-col space-y-2';
+                const cardClass = forPrint
+                    ? 'p-2.5 bg-gray-50 rounded border border-gray-200 min-w-0 text-sm leading-snug'
+                    : 'p-2 bg-gray-50 rounded mt-2';
+                detailHTML += `<div class="${tempGridClass}">`;
+                checks.forEach(check => {
                     const itemInfo = equipmentMaster[check.equipmentId] || {};
                     const itemName = itemInfo.name || '不明な備品';
                     const temp_min = parseFloat(itemInfo.temp_min);
@@ -1108,14 +1117,15 @@
                         ? `<p>排水: ${check.drainChecked === true ? '実施' : '<span class="text-red-500 font-bold">未実施</span>'}</p>`
                         : '';
 
-                    detailHTML += `<div class="p-2 bg-gray-50 rounded mt-2">
-                        <p class="font-semibold">${itemName}</p>
+                    detailHTML += `<div class="${cardClass}">
+                        <p class="font-semibold break-words">${itemName}</p>
                         <p>温度: ${tempDisplay}</p>
                         ${drainLine}
-                        <p>連絡先: ${check.contact || '未入力'}</p>
-                        <p>処置: ${check.action || '未入力'}</p>
+                        <p class="break-words">連絡先: ${check.contact || '未入力'}</p>
+                        <p class="break-words">処置: ${check.action || '未入力'}</p>
                     </div>`;
                 });
+                detailHTML += `</div>`;
             } else if (category === 'HACCPチェック') {
                  detailHTML += `<table class="w-full text-left text-sm mt-2"><thead><tr class="bg-gray-100">
                     <th class="p-2">項目</th><th class="p-2">状況</th><th class="p-2">時間帯</th><th class="p-2">実施者</th>
@@ -1250,7 +1260,7 @@
                     <h2 class="text-xl font-semibold mb-6">${currentState.category} - ${displayTitle} 履歴</h2>
             `;
             logs.forEach(log => {
-                printContent += generateLogDetailHTML(log);
+                printContent += generateLogDetailHTML(log, { forPrint: true });
             });
             printContent += `</div>`;
             printContainer.innerHTML = printContent;
