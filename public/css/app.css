@@ -1,8 +1,406 @@
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
-        
-        /* 基本のフォント設定 */
-        body { 
-            font-family: 'Noto Sans JP', 'Inter', sans-serif; 
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+
+        /*
+         * Apple Human Interface Guidelines に近いトークン（Web 向けに調整）
+         * 参照: https://developer.apple.com/design/human-interface-guidelines/
+         */
+        :root {
+            --hig-tint: #007aff;
+            --hig-tint-pressed: #0062cc;
+            --hig-tint-teal: #32ade6;
+            --hig-tint-teal-pressed: #2890c4;
+            --hig-purple: #af52de;
+            --hig-purple-pressed: #9540c0;
+            --hig-destructive: #ff3b30;
+            --hig-destructive-pressed: #d70015;
+            --hig-success: #34c759;
+            --hig-grouped-bg: #f2f2f7;
+            --hig-secondary-fill: #e5e5ea;
+            --hig-secondary-fill-hover: #d8d8dc;
+            --hig-label: #000000;
+            --hig-label-secondary: rgba(60, 60, 67, 0.6);
+            --hig-separator: rgba(60, 60, 67, 0.29);
+            --hig-card-radius: 14px;
+            --hig-button-radius: 12px;
+            --hig-control-radius: 10px;
+            --hig-min-tap: 44px;
+            --hig-font-ui: 17px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+                'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Segoe UI',
+                'Yu Gothic UI', 'Meiryo', sans-serif;
+            font-size: 17px;
+            line-height: 1.35;
+            color: var(--hig-label);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #app-container {
+            font-size: 17px;
+        }
+
+        #app-container input[type='checkbox'],
+        #app-container input[type='radio'] {
+            accent-color: var(--hig-tint);
+        }
+
+        /* フォーカス可視化（キーボード操作） */
+        .hig-btn-primary:focus-visible,
+        .hig-btn-secondary:focus-visible,
+        .hig-btn-destructive:focus-visible,
+        .hig-btn-tint-green:focus-visible,
+        .hig-btn-tint-violet:focus-visible,
+        .hig-btn-tint-teal:focus-visible,
+        .hig-row-nav:focus-visible,
+        .hig-link-back:focus-visible {
+            outline: 2px solid var(--hig-tint);
+            outline-offset: 2px;
+        }
+
+        .hig-bg-page {
+            background-color: var(--hig-grouped-bg);
+        }
+
+        .hig-card {
+            background: #fff;
+            border-radius: var(--hig-card-radius);
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        .hig-context-box {
+            background: var(--hig-grouped-bg);
+            border-radius: var(--hig-control-radius);
+            padding: 12px 14px;
+            font-size: 15px;
+            color: var(--hig-label-secondary);
+        }
+
+        .hig-field {
+            display: block;
+            width: 100%;
+            min-height: var(--hig-min-tap);
+            margin-top: 6px;
+            padding: 10px 14px;
+            font-size: 17px;
+            line-height: 1.2;
+            color: var(--hig-label);
+            background: #fff;
+            border: 1px solid var(--hig-separator);
+            border-radius: var(--hig-control-radius);
+            box-sizing: border-box;
+        }
+
+        .hig-field:focus {
+            outline: none;
+            border-color: var(--hig-tint);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+        }
+
+        .hig-btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 20px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: var(--hig-tint);
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, opacity 0.15s ease;
+        }
+        .hig-btn-primary:hover:not(:disabled) {
+            background: var(--hig-tint-pressed);
+        }
+        .hig-btn-primary:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .hig-btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 18px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: var(--hig-secondary-fill);
+            color: var(--hig-label);
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-secondary:hover {
+            background: var(--hig-secondary-fill-hover);
+        }
+
+        .hig-btn-destructive {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 18px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: var(--hig-destructive);
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-destructive:hover {
+            background: var(--hig-destructive-pressed);
+        }
+
+        .hig-btn-tint-green {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 16px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: rgba(52, 199, 89, 0.14);
+            color: #1d7a36;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-tint-green:hover {
+            background: rgba(52, 199, 89, 0.22);
+        }
+
+        .hig-btn-tint-violet {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 16px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: rgba(175, 82, 222, 0.12);
+            color: #5b21b6;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-tint-violet:hover {
+            background: rgba(175, 82, 222, 0.2);
+        }
+
+        .hig-btn-tint-teal {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-height: var(--hig-min-tap);
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: var(--hig-tint-teal);
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-tint-teal:hover {
+            background: var(--hig-tint-teal-pressed);
+        }
+
+        .hig-btn-purple-fill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: var(--hig-min-tap);
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--hig-button-radius);
+            background: var(--hig-purple);
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-btn-purple-fill:hover {
+            background: var(--hig-purple-pressed);
+        }
+
+        .hig-row-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-height: var(--hig-min-tap);
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: var(--hig-button-radius);
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .hig-row-nav:hover {
+            background: #fafafa;
+        }
+        .hig-row-nav:active {
+            background: #f0f0f0;
+        }
+
+        .hig-link-back {
+            display: inline-flex;
+            align-items: center;
+            min-height: var(--hig-min-tap);
+            padding: 0 4px;
+            margin: -4px;
+            border: none;
+            background: none;
+            color: var(--hig-tint);
+            font-size: 17px;
+            font-weight: 400;
+            cursor: pointer;
+            text-decoration: none;
+            border-radius: var(--hig-control-radius);
+        }
+        .hig-link-back:hover {
+            text-decoration: underline;
+        }
+
+        .hig-title-large {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            color: var(--hig-label);
+        }
+
+        .hig-title-medium {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.25;
+            color: var(--hig-label);
+        }
+
+        .hig-footnote {
+            font-size: 13px;
+            line-height: 1.3;
+            color: var(--hig-label-secondary);
+        }
+
+        .hig-modal-backdrop {
+            background: rgba(0, 0, 0, 0.4);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+        }
+
+        .hig-modal-panel {
+            border-radius: var(--hig-card-radius);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+            overflow: hidden;
+        }
+
+        .hig-modal-footer {
+            background: var(--hig-grouped-bg);
+            border-top: 1px solid var(--hig-separator);
+        }
+
+        .hig-modal-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: var(--hig-min-tap);
+            min-height: var(--hig-min-tap);
+            margin: -8px -8px -8px 0;
+            padding: 0;
+            border: none;
+            border-radius: var(--hig-control-radius);
+            background: transparent;
+            font-size: 28px;
+            line-height: 1;
+            color: var(--hig-label-secondary);
+            cursor: pointer;
+        }
+        .hig-modal-close:hover {
+            background: rgba(0, 0, 0, 0.06);
+        }
+        .hig-modal-close:focus-visible {
+            outline: 2px solid var(--hig-tint);
+            outline-offset: 2px;
+        }
+
+        .hig-check-card {
+            background: var(--hig-grouped-bg);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: var(--hig-button-radius);
+            padding: 16px;
+        }
+
+        .hig-dash-metric {
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: var(--hig-button-radius);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .hig-toast {
+            position: fixed;
+            top: max(20px, env(safe-area-inset-top));
+            right: max(16px, env(safe-area-inset-right));
+            left: auto;
+            max-width: min(400px, calc(100vw - 32px));
+            padding: 14px 18px;
+            border-radius: var(--hig-button-radius);
+            font-size: 15px;
+            font-weight: 500;
+            color: #fff;
+            z-index: 100;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+            transition: opacity 0.3s ease;
+        }
+        .hig-toast--success {
+            background: var(--hig-success);
+        }
+        .hig-toast--error {
+            background: var(--hig-destructive);
+        }
+
+        .hig-text-destructive {
+            color: var(--hig-destructive) !important;
+        }
+
+        .hig-history-item {
+            display: block;
+            width: 100%;
+            min-height: var(--hig-min-tap);
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 17px;
+            border: none;
+            border-radius: var(--hig-control-radius);
+            background: var(--hig-grouped-bg);
+            color: var(--hig-label);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .hig-history-item:hover {
+            background: var(--hig-secondary-fill);
+        }
+
+        .hig-sortable-item {
+            border-radius: var(--hig-control-radius);
         }
 
         /* 非表示用ユーティリティクラス */
@@ -19,8 +417,8 @@
             cursor: grabbing; 
         }
         .sortable-ghost { 
-            opacity: 0.4; 
-            background: #c7d2fe; 
+            opacity: 0.45; 
+            background: rgba(0, 122, 255, 0.2); 
         }
 
         /* 縦書きテキスト用のスタイル */
@@ -38,7 +436,7 @@
         /* ローディングインジケーター */
         .loader { 
             border: 4px solid #f3f3f3; 
-            border-top: 4px solid #3498db; 
+            border-top: 4px solid var(--hig-tint); 
             border-radius: 50%; 
             width: 40px; 
             height: 40px; 
@@ -69,12 +467,12 @@
         }
         /* カレンダー用のスタイル */
         .calendar-day.has-log {
-            background-color: #ebf8ff;
-            border-color: #90cdf4;
+            background-color: rgba(0, 122, 255, 0.1);
+            border-color: rgba(0, 122, 255, 0.35);
             cursor: pointer;
         }
         .calendar-day.has-log:hover {
-            background-color: #bee3f8;
+            background-color: rgba(0, 122, 255, 0.16);
         }
         /* ハイライト用のスタイル */
         .highlight-item {

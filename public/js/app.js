@@ -81,10 +81,10 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 appMetaCache = await res.json();
                 btn.textContent = `v${appMetaCache.version} · リリース履歴`;
-                btn.classList.remove('text-red-600');
+                btn.classList.remove('hig-text-destructive');
             } catch (e) {
                 btn.textContent = 'アプリ情報を取得できませんでした';
-                btn.classList.add('text-red-600');
+                btn.classList.add('hig-text-destructive');
                 console.warn('app-meta load failed', e);
             }
 
@@ -323,21 +323,21 @@
 
             const modal = document.createElement('div');
             modal.id = id;
-            modal.className = "fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4";
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 hig-modal-backdrop';
             
             let buttonHTML = '';
             buttons.forEach(btn => {
-                buttonHTML += `<button id="${btn.id}" class="${btn.classes}">${btn.text}</button>`;
+                buttonHTML += `<button type="button" id="${btn.id}" class="${btn.classes}">${btn.text}</button>`;
             });
 
             modal.innerHTML = `
-                <div class="relative mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-2xl bg-white">
-                    <div class="mt-3 text-center">
-                        <h3 class="text-lg leading-6 font-bold text-gray-900">${title}</h3>
-                        <div class="mt-4 px-2 py-3 space-y-4 max-h-[70vh] overflow-y-auto">${content}</div>
-                        <div class="items-center px-4 py-3 bg-gray-50 rounded-b-2xl flex justify-end gap-2">
+                <div class="relative w-full max-w-3xl max-h-[90vh] flex flex-col hig-modal-panel bg-white">
+                    <div class="px-5 pt-4 pb-3 border-b border-black/10 shrink-0">
+                        <h3 class="text-[17px] font-semibold text-black text-center leading-snug">${title}</h3>
+                    </div>
+                    <div class="px-4 py-4 overflow-y-auto flex-1 min-h-0 space-y-4">${content}</div>
+                    <div class="hig-modal-footer items-center px-4 py-3 flex justify-end gap-2 flex-wrap shrink-0">
                            ${buttonHTML}
-                        </div>
                     </div>
                 </div>`;
             
@@ -414,24 +414,24 @@
         function createChecklistViewHTML(title) {
              const layout = `<div id="checklist-container" class="space-y-4"></div>`;
             
-             return `<div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                    <div class="mb-6 border-b pb-4">
+             return `<div class="hig-card p-4 sm:p-6">
+                    <div class="mb-6 border-b border-black/10 pb-4">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <button class="back-to-main text-blue-600 hover:underline"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
-                            <h1 class="text-xl sm:text-2xl font-bold text-gray-800 text-center flex-grow">${currentState.storeName}<br>${title}</h1>
-                            <div class="flex gap-2">
-                              <button id="show-history-btn" class="bg-green-100 text-green-700 font-semibold px-4 py-2 rounded-lg hover:bg-green-200 transition-colors"><i class="fas fa-calendar-alt mr-2"></i>履歴</button>
-                              <button class="open-order-settings-btn bg-indigo-100 text-indigo-700 font-semibold px-4 py-2 rounded-lg hover:bg-indigo-200 transition-colors"><i class="fas fa-sort mr-2"></i>並び順を設定</button>
+                            <button type="button" class="back-to-main hig-link-back shrink-0"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
+                            <h1 class="hig-title-medium text-center flex-grow order-first sm:order-none">${currentState.storeName}<br><span class="text-[17px] font-semibold text-black/70">${title}</span></h1>
+                            <div class="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
+                              <button type="button" id="show-history-btn" class="hig-btn-tint-green"><i class="fas fa-calendar-alt mr-2"></i>履歴</button>
+                              <button type="button" class="open-order-settings-btn hig-btn-tint-violet"><i class="fas fa-sort mr-2"></i>並び順を設定</button>
                             </div>
                         </div>
-                        <p class="text-center text-xs text-gray-500 mt-3">記録・参照の営業日: <strong>${getBusinessDateString()}</strong>（朝${BUSINESS_DAY_START_HOUR}:00 切替・端末の時刻基準）</p>
+                        <p class="text-center hig-footnote mt-3">記録・参照の営業日: <strong class="text-black/80">${getBusinessDateString()}</strong>（朝${BUSINESS_DAY_START_HOUR}:00 切替・端末の時刻基準）</p>
                     </div>
                     ${layout}
                     <div id="global-save-container" class="mt-6 flex justify-end items-center gap-3">
-                        <button id="save-log-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"><i class="fas fa-save mr-2"></i>保存する</button>
+                        <button type="button" id="save-log-btn" class="hig-btn-primary px-8"><i class="fas fa-save mr-2"></i>保存する</button>
                     </div>
-                    <div class="mt-8 border-t pt-6">
-                        <button class="back-to-main text-blue-600 hover:underline"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
+                    <div class="mt-8 border-t border-black/10 pt-6">
+                        <button type="button" class="back-to-main hig-link-back"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
                     </div>
                 </div>`;
         }
@@ -461,7 +461,7 @@
 
         function createDropdown(options, isObject = false, data = {}) {
             const select = document.createElement('select');
-            select.className = "block w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 transition-colors focus:ring-blue-500 focus:border-blue-500";
+            select.className = 'hig-field';
             select.innerHTML = `<option selected disabled value="">選択...</option>`;
             
             if (isObject) {
@@ -774,7 +774,7 @@
             const buttons = [{
                 id: 'validation-fail-ok',
                 text: 'OK',
-                classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700',
+                classes: 'hig-btn-primary',
                 onClick: () => hideModal('validation-fail-modal'),
             }];
             createModal('validation-fail-modal', '保存できません', content, buttons);
@@ -787,7 +787,7 @@
             if (!container?.parentElement) return;
             const banner = document.createElement('div');
             banner.id = 'post-save-saved-banner';
-            banner.className = 'mb-3 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm font-medium text-center';
+            banner.className = 'mb-3 p-3 rounded-[10px] bg-[rgba(52,199,89,0.12)] border border-[rgba(52,199,89,0.25)] text-[#1d7a36] text-[15px] font-semibold text-center';
             banner.textContent = '保存済み — フォームを初期状態に戻しました。続けて入力する場合はそのまま入力してください。';
             container.parentElement.insertBefore(banner, container);
         }
@@ -838,7 +838,7 @@
                 }));
             } else if (currentState.category === 'トイレ掃除') {
                 checks = {};
-                document.querySelectorAll('#checklist-container .bg-gray-50').forEach(card => {
+                document.querySelectorAll('#checklist-container [data-section]').forEach(card => {
                     const sectionName = card.querySelector('h3').textContent;
                     const sectionChecks = {};
                     card.querySelectorAll('input[type="checkbox"]').forEach(cb => { sectionChecks[cb.dataset.taskId] = cb.checked; });
@@ -932,13 +932,13 @@
             const month = date.getMonth();
             const content = `
                 <div class="flex justify-between items-center mb-4">
-                    <button id="prev-month-btn" class="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300">&lt;</button>
+                    <button type="button" id="prev-month-btn" class="hig-btn-secondary min-w-[44px] px-3 py-2 text-lg leading-none">&lt;</button>
                     <h4 id="calendar-title" class="text-lg font-bold">${year}年 ${month + 1}月</h4>
-                    <button id="next-month-btn" class="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300">&gt;</button>
+                    <button type="button" id="next-month-btn" class="hig-btn-secondary min-w-[44px] px-3 py-2 text-lg leading-none">&gt;</button>
                 </div>
                 <div id="calendar-body" class="grid grid-cols-7 gap-1 text-center"></div>
             `;
-            const buttons = [{ id: 'calendar-close-btn', text: '閉じる', classes: 'px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300', onClick: () => hideModal('calendar-modal')}];
+            const buttons = [{ id: 'calendar-close-btn', text: '閉じる', classes: 'hig-btn-secondary', onClick: () => hideModal('calendar-modal')}];
             createModal('calendar-modal', `${currentState.category} の履歴`, content, buttons);
             
             document.getElementById('prev-month-btn').addEventListener('click', () => {
@@ -992,7 +992,8 @@
                 if (logsByDate[date]) {
                     dayCell.classList.add('has-log');
                     const logCount = document.createElement('span');
-                    logCount.className = "mt-auto text-xs bg-blue-500 text-white rounded-full px-2 py-1 self-center";
+                    logCount.className = 'mt-auto text-xs font-semibold text-white rounded-full px-2 py-1 self-center';
+                    logCount.style.background = 'var(--hig-tint)';
                     logCount.textContent = `${logsByDate[date].length}件`;
                     dayCell.appendChild(logCount);
 
@@ -1041,12 +1042,12 @@
                 const staffInfo = staffMaster[staffId] || {};
                 const staffName = staffInfo.nickname || `${staffInfo.lastName || ''} ${staffInfo.firstName || ''}`.trim() || '不明';
                 const time = log.createdAt.toDate().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                return `<button data-log-id="${log.id}" class="history-item-btn w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg">${time} - ${staffName}</button>`;
+                return `<button type="button" data-log-id="${log.id}" class="history-item-btn hig-history-item">${time} - ${staffName}</button>`;
             }).join('');
 
             const buttons = [
-                { id: 'print-day-history-btn', text: 'この日の履歴をPDF保存', classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700', onClick: () => printHistory(ordered, date)},
-                { id: 'day-logs-close-btn', text: '閉じる', classes: 'px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300', onClick: () => hideModal('day-logs-modal')}
+                { id: 'print-day-history-btn', text: 'この日の履歴をPDF保存', classes: 'hig-btn-primary', onClick: () => printHistory(ordered, date)},
+                { id: 'day-logs-close-btn', text: '閉じる', classes: 'hig-btn-secondary', onClick: () => hideModal('day-logs-modal')}
             ];
             createModal('day-logs-modal', `${date.toLocaleDateString('ja-JP')} の履歴`, `<div class="space-y-2">${listContent}</div>`, buttons);
 
@@ -1179,8 +1180,8 @@
         function showHistoryDetail(logData) {
             const detailHTML = generateLogDetailHTML(logData);
             const buttons = [
-                {id: 'print-single-history-btn', text: 'この履歴をPDF保存', classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700', onClick: () => printHistory([logData])},
-                {id: 'history-detail-close-btn', text: '閉じる', classes: 'px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300', onClick: () => hideModal('history-detail-modal')}
+                {id: 'print-single-history-btn', text: 'この履歴をPDF保存', classes: 'hig-btn-primary', onClick: () => printHistory([logData])},
+                {id: 'history-detail-close-btn', text: '閉じる', classes: 'hig-btn-secondary', onClick: () => hideModal('history-detail-modal')}
             ];
             createModal('history-detail-modal', '履歴詳細', detailHTML, buttons);
         }
@@ -1323,18 +1324,18 @@
 
         // --- 並び順設定モーダル ---
         function showStallTypeSelectModal() {
-            const content = `<button id="modal-edit-large-stall-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">個室大</button>
-                             <button id="modal-edit-small-stall-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">個室小</button>`;
-            const buttons = [{ id: 'modal-cancel-stall-btn', text: 'キャンセル', classes: 'px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300', onClick: () => hideModal('stall-select-modal') }];
+            const content = `<button type="button" id="modal-edit-large-stall-btn" class="hig-btn-primary w-full mb-2">個室大</button>
+                             <button type="button" id="modal-edit-small-stall-btn" class="hig-btn-primary w-full">個室小</button>`;
+            const buttons = [{ id: 'modal-cancel-stall-btn', text: 'キャンセル', classes: 'hig-btn-secondary', onClick: () => hideModal('stall-select-modal') }];
             createModal('stall-select-modal', '編集する項目を選択', content, buttons);
             document.getElementById('modal-edit-large-stall-btn').addEventListener('click', () => openOrderModalForCategory('toiletLargeStallOrder', '個室大の項目設定'));
             document.getElementById('modal-edit-small-stall-btn').addEventListener('click', () => openOrderModalForCategory('toiletSmallStallOrder', '個室小の項目設定'));
         }
 
         function showHandoverSelectModal() {
-            const content = `<button id="modal-edit-handover-1-btn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg">1レジ</button>
-                             <button id="modal-edit-handover-2-btn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg">2レジ</button>`;
-            const buttons = [{ id: 'modal-cancel-handover-btn', text: 'キャンセル', classes: 'px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300', onClick: () => hideModal('handover-select-modal') }];
+            const content = `<button type="button" id="modal-edit-handover-1-btn" class="hig-btn-purple-fill mb-2">1レジ</button>
+                             <button type="button" id="modal-edit-handover-2-btn" class="hig-btn-purple-fill">2レジ</button>`;
+            const buttons = [{ id: 'modal-cancel-handover-btn', text: 'キャンセル', classes: 'hig-btn-secondary', onClick: () => hideModal('handover-select-modal') }];
             createModal('handover-select-modal', '編集するレジを選択', content, buttons);
             document.getElementById('modal-edit-handover-1-btn').addEventListener('click', () => openOrderModalForCategory('handover1Order', '1レジの項目設定'));
             document.getElementById('modal-edit-handover-2-btn').addEventListener('click', () => openOrderModalForCategory('handover2Order', '2レジの項目設定'));
@@ -1352,18 +1353,18 @@
                                 <div>
                                     <h4 class="text-md font-semibold text-gray-700 mb-2">表示する項目</h4>
                                     <p class="text-xs text-gray-500 mb-2">ドラッグで並び替えができます。</p>
-                                    <div id="active-list" class="p-3 border rounded-lg min-h-[120px] bg-blue-50 space-y-2"></div>
+                                    <div id="active-list" class="p-3 border border-black/10 rounded-[10px] min-h-[120px] bg-[rgba(0,122,255,0.08)] space-y-2"></div>
                                 </div>
                                 <div class="my-4 border-t-2 border-dashed"></div>
                                 <div>
                                     <h4 class="text-md font-semibold text-gray-700 mb-2">追加可能な項目 (非表示)</h4>
                                     <p class="text-xs text-gray-500 mb-2">「追加」ボタンで上のリストに追加できます。</p>
-                                    <div id="available-list" class="p-3 border rounded-lg min-h-[120px] bg-gray-100 space-y-2"></div>
+                                    <div id="available-list" class="p-3 border border-black/10 rounded-[10px] min-h-[120px] bg-[var(--hig-grouped-bg)] space-y-2"></div>
                                 </div>
                              </div>`;
             const buttons = [
-                { id: 'cancel-order-btn', text: '戻る', classes: 'px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300', onClick: () => hideModal('order-modal')},
-                { id: 'save-order-btn', text: 'この並び順で保存', classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700', onClick: saveOrder}
+                { id: 'cancel-order-btn', text: '戻る', classes: 'hig-btn-secondary', onClick: () => hideModal('order-modal')},
+                { id: 'save-order-btn', text: 'この並び順で保存', classes: 'hig-btn-primary', onClick: saveOrder}
             ];
             createModal('order-modal', title, content, buttons);
             
@@ -1477,14 +1478,14 @@
                 const item = masterData[id];
                 if (!item) return;
                 const div = document.createElement('div');
-                div.className = "sortable-item p-3 bg-white border rounded-lg shadow-sm flex items-center justify-between";
+                div.className = 'sortable-item hig-sortable-item p-3 bg-white border border-black/10 shadow-sm flex items-center justify-between';
                 div.draggable = true;
                 div.dataset.id = id;
                 div.innerHTML = `<div class="flex items-center flex-grow">
                                     <i class="fas fa-grip-vertical text-gray-400 mr-3 cursor-grab"></i>
                                     <span class="flex-grow text-left">${item.name}</span>
                                  </div>
-                                 <button class="remove-item-btn text-red-500 hover:text-red-700 p-1"><i class="fas fa-minus-circle"></i></button>`;
+                                 <button type="button" class="remove-item-btn inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-[#ff3b30] hover:opacity-80 rounded-[10px]"><i class="fas fa-minus-circle text-lg"></i></button>`;
                 activeList.appendChild(div);
             });
 
@@ -1492,10 +1493,10 @@
                 const item = masterData[id];
                 if (!item) return;
                 const div = document.createElement('div');
-                div.className = "p-3 bg-white border rounded-lg shadow-sm flex items-center justify-between";
+                div.className = 'p-3 bg-white border border-black/10 rounded-[10px] shadow-sm flex items-center justify-between';
                 div.dataset.id = id;
                 div.innerHTML = `<span class="flex-grow text-left">${item.name}</span>
-                                 <button class="add-item-btn text-green-500 hover:text-green-700 p-1 font-semibold"><i class="fas fa-plus-circle mr-1"></i> 追加</button>`;
+                                 <button type="button" class="add-item-btn inline-flex items-center justify-center min-h-[44px] px-3 text-[#34c759] hover:opacity-80 font-semibold rounded-[10px]"><i class="fas fa-plus-circle mr-1"></i>追加</button>`;
                 availableList.appendChild(div);
             });
         }
@@ -1534,14 +1535,14 @@
         // --- 警告・通知 ---
         function showWarningAlert(message) {
              if (!message || message.trim() === '') return;
-             const buttons = [{ id: 'warning-ok-btn-dynamic', text: 'OK', classes: 'w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700', onClick: () => hideModal('warning-modal-dynamic')}];
+             const buttons = [{ id: 'warning-ok-btn-dynamic', text: 'OK', classes: 'hig-btn-destructive w-full', onClick: () => hideModal('warning-modal-dynamic')}];
             createModal('warning-modal-dynamic', '警告', `<p class="text-sm text-gray-600 whitespace-pre-wrap">${message}</p>`, buttons);
         }
         
         function showAppAlert(message, isSuccess = true) {
             const alertBox = document.createElement('div');
-            const bgColor = isSuccess ? 'bg-green-500' : 'bg-red-500';
-            alertBox.className = `fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300 ${bgColor}`;
+            const tone = isSuccess ? 'hig-toast--success' : 'hig-toast--error';
+            alertBox.className = `hig-toast ${tone} transition-opacity duration-300`;
             alertBox.textContent = message;
             document.body.appendChild(alertBox);
             setTimeout(() => {
@@ -1562,7 +1563,7 @@
                 if (!item) return;
 
                 const card = document.createElement('div');
-                card.className = "bg-gray-50 border rounded-lg p-4 space-y-4";
+                card.className = 'hig-check-card space-y-4';
                 card.dataset.equipmentId = id;
                 const temp_min = parseFloat(item.temp_min);
                 const temp_max = parseFloat(item.temp_max);
@@ -1642,7 +1643,7 @@
                 if (!item) return;
 
                 const card = document.createElement('div');
-                card.className = "bg-gray-50 border rounded-lg p-4 space-y-4";
+                card.className = 'hig-check-card space-y-4';
                 card.dataset.itemId = id;
 
                 card.innerHTML = `
@@ -1705,7 +1706,7 @@
             container.innerHTML = '';
             const createToiletSection = (sectionName, orderType) => {
                 const card = document.createElement('div');
-                card.className = "bg-gray-50 border rounded-lg p-4 space-y-3";
+                card.className = 'hig-check-card space-y-3';
                 card.dataset.section = sectionName;
                 card.innerHTML = `<h3 class="font-semibold text-lg">${sectionName}</h3>`;
 
@@ -1751,7 +1752,7 @@
             
             const createHandoverSection = (sectionName, orderType) => {
                 const card = document.createElement('div');
-                card.className = "bg-gray-50 border rounded-lg p-4 space-y-4 handover-section";
+                card.className = 'hig-check-card space-y-4 handover-section';
                 card.dataset.orderType = orderType;
                 card.innerHTML = `<h3 class="font-semibold text-lg">${sectionName}</h3>`;
 
@@ -1814,7 +1815,7 @@
 
                 const saveButtonContainer = document.createElement('div');
                 saveButtonContainer.className = 'mt-4 flex justify-end';
-                saveButtonContainer.innerHTML = `<button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><i class="fas fa-save mr-2"></i>${sectionName}の情報を保存</button>`;
+                saveButtonContainer.innerHTML = `<button type="button" class="hig-btn-purple-fill max-w-md"><i class="fas fa-save mr-2"></i>${sectionName}の情報を保存</button>`;
                 saveButtonContainer.querySelector('button').addEventListener('click', handleHandoverSave);
                 card.appendChild(saveButtonContainer);
                 
@@ -1861,21 +1862,21 @@
             const todayBiz = getBusinessDateString();
 
             dashboardView.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b pb-4 gap-4">
-                        <button class="back-to-main text-blue-600 hover:underline"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
-                        <div class="text-center flex-grow">
-                             <h1 class="text-xl sm:text-2xl font-bold text-gray-800">${currentState.storeName}</h1>
-                             <h2 class="text-lg text-gray-600">ダッシュボード</h2>
-                             <p class="text-xs text-gray-500 mt-1">表示は営業日ベース（朝${BUSINESS_DAY_START_HOUR}:00 切替）</p>
+                <div class="hig-card p-4 sm:p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-black/10 pb-4 gap-4">
+                        <button type="button" class="back-to-main hig-link-back shrink-0"><i class="fas fa-chevron-left mr-2"></i>カテゴリ選択に戻る</button>
+                        <div class="text-center flex-grow order-first sm:order-none">
+                             <h1 class="hig-title-medium">${currentState.storeName}</h1>
+                             <h2 class="text-[17px] font-semibold text-black/60 mt-1">ダッシュボード</h2>
+                             <p class="hig-footnote mt-1">表示は営業日ベース（朝${BUSINESS_DAY_START_HOUR}:00 切替）</p>
                         </div>
                         <div class="w-full sm:w-auto">
-                            <label for="dashboard-date" class="text-sm font-medium">営業日:</label>
-                            <input type="date" id="dashboard-date" value="${todayBiz}" class="mt-1 block w-full sm:w-auto bg-gray-50 border border-gray-300 rounded-lg p-2">
+                            <label for="dashboard-date" class="text-[15px] font-semibold text-black/70">営業日</label>
+                            <input type="date" id="dashboard-date" value="${todayBiz}" class="hig-field mt-1 w-full sm:w-auto">
                         </div>
                     </div>
                     <div id="dashboard-content" class="space-y-6">
-                         <div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-2 text-gray-500">データを読み込んでいます...</p></div>
+                         <div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-2 hig-footnote">データを読み込んでいます...</p></div>
                     </div>
                 </div>`;
             
@@ -1894,7 +1895,7 @@
          */
         async function updateDashboard(pathDateStr) {
             const contentEl = document.getElementById('dashboard-content');
-            contentEl.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-2 text-gray-500">データを読み込んでいます...</p></div>`;
+            contentEl.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-2 hig-footnote">データを読み込んでいます...</p></div>`;
             
             const logData = await fetchDashboardData(pathDateStr || getBusinessDateString());
             
@@ -1920,9 +1921,9 @@
             summaryHTML += '</div>';
 
             if(issuesHTML) {
-                issuesHTML = `<h3 class="text-lg font-semibold text-gray-800 mt-8 border-b pb-2">要確認項目</h3><div class="space-y-4 mt-4">${issuesHTML}</div>`;
+                issuesHTML = `<h3 class="text-[20px] font-semibold text-black mt-8 border-b border-black/10 pb-2">要確認項目</h3><div class="space-y-4 mt-4">${issuesHTML}</div>`;
             } else {
-                 issuesHTML = `<div class="mt-8 text-center p-6 bg-gray-50 rounded-lg"><i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i><p class="text-gray-600">この日の記録に、特に注意が必要な項目はありませんでした。</p></div>`;
+                 issuesHTML = `<div class="mt-8 text-center p-6 rounded-[12px] border border-black/10 bg-[var(--hig-grouped-bg)]"><i class="fas fa-check-circle text-[#34c759] text-3xl mb-2"></i><p class="text-black/70 text-[17px]">この日の記録に、特に注意が必要な項目はありませんでした。</p></div>`;
             }
 
             contentEl.innerHTML = summaryHTML + issuesHTML;
@@ -2105,20 +2106,20 @@
                 purple: 'text-purple-500 bg-purple-50',
              };
             return `
-                <div class="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+                <div class="hig-dash-metric p-4 flex items-center justify-between gap-3">
                     <div>
-                        <p class="text-sm font-medium text-gray-500">${title}</p>
-                        ${total > 0 ? `<p class="text-2xl font-bold text-gray-800">${total}回実施</p>` : `<p class="text-xl font-semibold text-gray-400">未実施</p>`}
+                        <p class="text-[15px] font-medium text-black/50">${title}</p>
+                        ${total > 0 ? `<p class="text-[28px] font-bold text-black tracking-tight">${total}回実施</p>` : `<p class="text-xl font-semibold text-black/35">未実施</p>`}
                     </div>
                     ${total > 0 ? `
-                        <div class="text-right">
+                        <div class="text-right shrink-0">
                            ${issueCount > 0 ? 
-                                `<p class="text-lg font-bold text-red-500">${issueCount}件の要確認項目</p>` :
-                                `<p class="text-lg font-bold text-green-600">問題なし</p>`
+                                `<p class="text-[17px] font-semibold text-[#ff3b30]">${issueCount}件の要確認項目</p>` :
+                                `<p class="text-[17px] font-semibold text-[#34c759]">問題なし</p>`
                            }
                         </div>
                     ` : ''}
-                    <div class="text-3xl p-3 rounded-full ${colorClasses[color]}">
+                    <div class="text-3xl p-3 rounded-full ${colorClasses[color]} shrink-0">
                         <i class="fas ${icon}"></i>
                     </div>
                 </div>`;
@@ -2142,7 +2143,7 @@
 
                 return `
                     <li class="flex justify-between items-center">
-                        <button class="history-detail-link text-left text-red-600 hover:underline"
+                        <button type="button" class="history-detail-link text-left text-[#ff3b30] hover:underline min-h-[44px] py-1"
                                 data-category='${issue.category}'
                                 data-log='${JSON.stringify(issue.log)}'>
                             ${issue.text}
@@ -2152,9 +2153,9 @@
             }).join('');
 
             return `
-                <div class="bg-white p-4 rounded-lg shadow border-l-4 ${colorClasses[color]}">
-                    <h4 class="font-semibold text-gray-700"><i class="fas ${icon} mr-2"></i>${title}</h4>
-                    <ul class="mt-2 ml-4 list-disc list-inside text-sm text-gray-800 space-y-2">
+                <div class="hig-dash-metric p-4 border-l-4 ${colorClasses[color]}">
+                    <h4 class="font-semibold text-[17px] text-black/80"><i class="fas ${icon} mr-2"></i>${title}</h4>
+                    <ul class="mt-2 ml-4 list-disc list-inside text-[15px] text-black/80 space-y-2">
                         ${issueItemsHTML}
                     </ul>
                 </div>`;

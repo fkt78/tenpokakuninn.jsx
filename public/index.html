@@ -12,12 +12,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="bg-gray-100 p-4 sm:p-6">
+<body class="hig-bg-page p-4 sm:p-6 min-h-screen">
 
     <!-- ローディングオーバーレイ -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex flex-col justify-center items-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-50 flex flex-col justify-center items-center">
         <div class="loader"></div>
-        <p id="loading-text" class="mt-4 text-gray-600">接続中...</p>
+        <p id="loading-text" class="mt-4 hig-footnote">接続中...</p>
     </div>
 
     <!-- アプリ本体 -->
@@ -25,51 +25,51 @@
         
         <!-- トップページ（店舗・担当者・カテゴリ選択） -->
         <div id="main-app-view">
-            <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-8 space-y-6">
+            <div class="w-full max-w-md mx-auto hig-card p-6 sm:p-8 space-y-6">
                 <div class="text-center">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">店舗引き継ぎ・確認</h1>
-                    <p class="text-gray-500 mt-1">店舗・担当を選び、引き継ぎや各種チェックを記録します</p>
+                    <h1 class="hig-title-large">店舗引き継ぎ・確認</h1>
+                    <p class="hig-footnote mt-2">店舗・担当を選び、引き継ぎや各種チェックを記録します</p>
                 </div>
                 <!-- ステップ1: 店舗と担当者を選択 -->
-                <div id="step-1" class="step-card space-y-4">
+                <div id="step-1" class="step-card space-y-5">
                     <div>
-                        <label for="store-select" class="block text-sm font-medium text-gray-700">店舗</label>
-                        <select id="store-select" required class="mt-1 block w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5">
+                        <label for="store-select" class="block text-[15px] font-semibold text-black/70">店舗</label>
+                        <select id="store-select" required class="hig-field">
                             <option value="" selected disabled>店舗を選択してください</option>
                         </select>
                     </div>
                     <div>
-                        <label for="staff-select" class="block text-sm font-medium text-gray-700">担当者</label>
-                        <select id="staff-select" required class="mt-1 block w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5">
+                        <label for="staff-select" class="block text-[15px] font-semibold text-black/70">担当者</label>
+                        <select id="staff-select" required class="hig-field">
                             <option value="" selected disabled>担当者を選択してください</option>
                         </select>
                     </div>
-                    <button id="to-step-2" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors" disabled>大項目選択へ <i class="fas fa-arrow-right ml-2"></i></button>
+                    <button type="button" id="to-step-2" class="hig-btn-primary w-full" disabled>大項目選択へ <i class="fas fa-arrow-right ml-2"></i></button>
                 </div>
                 <!-- ステップ2: チェックカテゴリを選択 -->
                 <div id="step-2" class="step-card hidden-step space-y-3">
-                    <div class="text-sm text-gray-600 p-3 bg-gray-100 rounded-lg">
-                        <p><i class="fas fa-store mr-2 text-gray-500"></i><span id="selected-store" class="font-medium"></span></p>
-                        <p><i class="fas fa-user mr-2 text-gray-500"></i><span id="selected-staff" class="font-medium"></span></p>
+                    <div class="hig-context-box space-y-2">
+                        <p><i class="fas fa-store mr-2 opacity-50"></i><span id="selected-store" class="font-medium text-black/80"></span></p>
+                        <p><i class="fas fa-user mr-2 opacity-50"></i><span id="selected-staff" class="font-medium text-black/80"></span></p>
                     </div>
                      <!-- ダッシュボードへのボタン -->
-                    <button id="show-dashboard-btn" class="w-full text-left bg-teal-500 hover:bg-teal-600 text-white border py-4 px-5 rounded-lg flex justify-between items-center transition-colors">
-                        <div><span class="font-semibold"><i class="fas fa-chart-line mr-3"></i>本日の状況ダッシュボード</span></div><i class="fas fa-chevron-right"></i>
+                    <button type="button" id="show-dashboard-btn" class="hig-btn-tint-teal">
+                        <span><i class="fas fa-chart-line mr-3"></i>本日の状況ダッシュボード</span><i class="fas fa-chevron-right opacity-90"></i>
                     </button>
-                    <div class="border-t my-4"></div>
-                    <button data-category="温度チェック" class="category-btn w-full text-left bg-white hover:bg-gray-50 border py-4 px-5 rounded-lg flex justify-between items-center transition-colors">
-                        <div><span class="font-semibold"><i class="fas fa-thermometer-half mr-3 text-red-500"></i>温度チェック</span><div class="text-xs text-gray-500 mt-1 category-status"></div></div><i class="fas fa-chevron-right text-gray-400"></i>
+                    <div class="h-px bg-black/[0.08] my-4"></div>
+                    <button type="button" data-category="温度チェック" class="category-btn hig-row-nav">
+                        <div><span class="font-semibold"><i class="fas fa-thermometer-half mr-3 text-red-500"></i>温度チェック</span><div class="hig-footnote mt-0.5 category-status"></div></div><i class="fas fa-chevron-right text-black/25"></i>
                     </button>
-                    <button data-category="HACCPチェック" class="category-btn w-full text-left bg-white hover:bg-gray-50 border py-4 px-5 rounded-lg flex justify-between items-center transition-colors">
-                        <div><span class="font-semibold"><i class="fas fa-clipboard-check mr-3 text-green-500"></i>HACCPチェック</span><div class="text-xs text-gray-500 mt-1 category-status"></div></div><i class="fas fa-chevron-right text-gray-400"></i>
+                    <button type="button" data-category="HACCPチェック" class="category-btn hig-row-nav">
+                        <div><span class="font-semibold"><i class="fas fa-clipboard-check mr-3 text-green-600"></i>HACCPチェック</span><div class="hig-footnote mt-0.5 category-status"></div></div><i class="fas fa-chevron-right text-black/25"></i>
                     </button>
-                    <button data-category="トイレ掃除" class="category-btn w-full text-left bg-white hover:bg-gray-50 border py-4 px-5 rounded-lg flex justify-between items-center transition-colors">
-                        <div><span class="font-semibold"><i class="fas fa-restroom mr-3 text-blue-500"></i>トイレ掃除</span><div class="text-xs text-gray-500 mt-1 category-status"></div></div><i class="fas fa-chevron-right text-gray-400"></i>
+                    <button type="button" data-category="トイレ掃除" class="category-btn hig-row-nav">
+                        <div><span class="font-semibold"><i class="fas fa-restroom mr-3 text-sky-500"></i>トイレ掃除</span><div class="hig-footnote mt-0.5 category-status"></div></div><i class="fas fa-chevron-right text-black/25"></i>
                     </button>
-                    <button data-category="引き継ぎチェック" class="category-btn w-full text-left bg-white hover:bg-gray-50 border py-4 px-5 rounded-lg flex justify-between items-center transition-colors">
-                        <div><span class="font-semibold"><i class="fas fa-people-arrows mr-3 text-purple-500"></i>引き継ぎチェック</span><div class="text-xs text-gray-500 mt-1 category-status"></div></div><i class="fas fa-chevron-right text-gray-400"></i>
+                    <button type="button" data-category="引き継ぎチェック" class="category-btn hig-row-nav">
+                        <div><span class="font-semibold"><i class="fas fa-people-arrows mr-3 text-purple-600"></i>引き継ぎチェック</span><div class="hig-footnote mt-0.5 category-status"></div></div><i class="fas fa-chevron-right text-black/25"></i>
                     </button>
-                    <button id="back-to-step-1" class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors"><i class="fas fa-arrow-left mr-2"></i>戻る</button>
+                    <button type="button" id="back-to-step-1" class="hig-btn-secondary w-full mt-2"><i class="fas fa-arrow-left mr-2"></i>戻る</button>
                 </div>
             </div>
         </div>
@@ -84,18 +84,18 @@
             <!-- ここにダッシュボードのHTMLが動的に生成される -->
         </div>
 
-        <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
-            <button type="button" id="version-info-btn" class="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded px-1">アプリ情報を読み込み中…</button>
+        <footer class="mt-8 pt-4 border-t border-black/10 text-center">
+            <button type="button" id="version-info-btn" class="hig-link-back text-[15px]">アプリ情報を読み込み中…</button>
         </footer>
     </div>
 
-    <div id="version-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black bg-opacity-40 p-4" aria-modal="true" role="dialog">
-        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
-            <div class="flex justify-between items-center border-b px-4 py-3 shrink-0">
-                <h2 class="text-lg font-bold text-gray-800">リリース・デプロイ履歴</h2>
-                <button type="button" id="version-modal-close" class="text-gray-500 hover:text-gray-800 text-2xl leading-none px-1" aria-label="閉じる">&times;</button>
+    <div id="version-modal" class="fixed inset-0 z-[60] hidden items-center justify-center hig-modal-backdrop p-4" aria-modal="true" role="dialog">
+        <div class="bg-white hig-modal-panel max-w-lg w-full max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-black/10 px-4 py-3 shrink-0 bg-[var(--hig-grouped-bg)]">
+                <h2 class="text-[17px] font-semibold text-black">リリース・デプロイ履歴</h2>
+                <button type="button" id="version-modal-close" class="hig-modal-close" aria-label="閉じる">&times;</button>
             </div>
-            <div class="px-4 py-3 overflow-y-auto text-sm text-gray-700" id="version-modal-body"></div>
+            <div class="px-4 py-3 overflow-y-auto text-[15px] text-black/80" id="version-modal-body"></div>
         </div>
     </div>
 
