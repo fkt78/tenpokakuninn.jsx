@@ -1,0 +1,94 @@
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        
+        /* 基本のフォント設定 */
+        body { 
+            font-family: 'Noto Sans JP', 'Inter', sans-serif; 
+        }
+
+        /* 非表示用ユーティリティクラス */
+        .hidden-view, .hidden-step { 
+            display: none; 
+        }
+        
+        /* ドラッグ＆ドロップ用スタイル */
+        .sortable-item { 
+            cursor: grab; 
+            user-select: none; 
+        }
+        .sortable-item:active { 
+            cursor: grabbing; 
+        }
+        .sortable-ghost { 
+            opacity: 0.4; 
+            background: #c7d2fe; 
+        }
+
+        /* 縦書きテキスト用のスタイル */
+        .vertical-text-container {
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        /* ローディングインジケーター */
+        .loader { 
+            border: 4px solid #f3f3f3; 
+            border-top: 4px solid #3498db; 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            margin-top: -20px; 
+            margin-left: -20px; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        /* 印刷用スタイル */
+        @media print {
+            body.is-printing > *:not(.print-container) {
+                display: none !important;
+            }
+            .print-container {
+                display: block !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+            }
+        }
+        /* カレンダー用のスタイル */
+        .calendar-day.has-log {
+            background-color: #ebf8ff;
+            border-color: #90cdf4;
+            cursor: pointer;
+        }
+        .calendar-day.has-log:hover {
+            background-color: #bee3f8;
+        }
+        /* ハイライト用のスタイル */
+        .highlight-item {
+            background-color: #fefcbf !important; /* light yellow */
+            border: 2px solid #fcd34d; /* amber */
+            border-radius: 0.5rem;
+            transition: all 0.5s ease-in-out;
+            padding: 4px;
+            margin: -4px;
+        }
+        /* 保存前バリデーション: 未選択のセレクト */
+        select.validation-field-error {
+            outline: 2px solid #ef4444;
+            outline-offset: 2px;
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
