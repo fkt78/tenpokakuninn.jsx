@@ -101,6 +101,13 @@
             padding: 4px;
             margin: -4px;
         }
+        /* 保存前バリデーション: 未選択のセレクト */
+        select.validation-field-error {
+            outline: 2px solid #ef4444;
+            outline-offset: 2px;
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6">
@@ -195,7 +202,24 @@
         // Firebase関連のモジュールをインポート
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, getDocs, addDoc, serverTimestamp, query, orderBy, limit, collectionGroup, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import {
+            initializeFirestore,
+            getFirestore,
+            persistentLocalCache,
+            persistentMultipleTabManager,
+            doc,
+            setDoc,
+            collection,
+            getDocs,
+            addDoc,
+            serverTimestamp,
+            query,
+            orderBy,
+            limit,
+            collectionGroup,
+            where,
+            Timestamp,
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- グローバル変数定義 ---
         let app, auth, db; // Firebaseインスタンス
@@ -312,6 +336,10 @@
                 await fetchMasterData();
                 populateDropdowns();
                 setupEventListeners();
+                if (!window._tenpoDraftPagehideBound) {
+                    window._tenpoDraftPagehideBound = true;
+                    window.addEventListener('pagehide', flushDraftSaveSync);
+                }
                 showLoading(false);
                 await loadAppMetaAndBindUi();
             } catch (error) {
@@ -336,9 +364,20 @@
             };
 
             app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
+            // IndexedDB によるオフライン永続化（読み書きをローカルにキャッシュ、回線復帰後に同期）
+            // マルチタブ同期あり：店舗端末で複数タブを開いても failed-precondition になりにくい
+            try {
+                db = initializeFirestore(app, {
+                    localCache: persistentLocalCache({
+                        tabManager: persistentMultipleTabManager(),
+                    }),
+                });
+            } catch (e) {
+                console.warn('Firestore オフライン永続化の初期化に失敗。オンラインのみで続行します:', e);
+                db = getFirestore(app);
+            }
             auth = getAuth(app);
-            
+
             try {
                 if (!auth.currentUser) {
                     await signInAnonymously(auth);
@@ -540,6 +579,11 @@
                 'トイレ掃除': renderToiletCheckView, '引き継ぎチェック': renderHandoverCheckView,
             };
             renderFunctions[category]?.(highlightInfo);
+
+            if (category === '温度チェック' || category === 'HACCPチェック') {
+                restoreChecklistDraft();
+                attachChecklistDraftListeners();
+            }
         }
 
         function backToMainView() {
@@ -678,6 +722,244 @@
             }
         }
 
+        // --- チェックリスト下書き（localStorage）・保存前バリデーション ---
+        const DRAFT_STORAGE_PREFIX = 'tenpo-check-draft';
+        let draftSaveTimer = null;
+
+        function draftStorageKey() {
+            const d = new Date().toISOString().slice(0, 10);
+            return `${DRAFT_STORAGE_PREFIX}:${currentState.store}:${currentState.staff}:${currentState.category}:${d}`;
+        }
+
+        function collectTempDraftState() {
+            return Array.from(document.querySelectorAll('#checklist-container [data-equipment-id]')).map((card) => ({
+                equipmentId: card.dataset.equipmentId,
+                temperature: card.querySelector('[data-field="temperature"]')?.value ?? '',
+                drainChecked: card.querySelector('[data-field="drain"]')?.checked ?? false,
+                contact: card.querySelector('[data-field="contact"]')?.value ?? '',
+                action: card.querySelector('[data-field="action"]')?.value ?? '',
+            }));
+        }
+
+        function collectHaccpDraftState() {
+            return Array.from(document.querySelectorAll('#checklist-container [data-item-id]')).map((card) => ({
+                itemId: card.dataset.itemId,
+                status: card.querySelector('[data-field="status"]')?.value ?? '',
+                timeSlot: card.querySelector('[data-field="timeSlot"]')?.value ?? '',
+                staff: card.querySelector('[data-field="staff"]')?.value ?? '',
+                action: card.querySelector('[data-field="action"]')?.value ?? '',
+                contact: card.querySelector('[data-field="contact"]')?.value ?? '',
+            }));
+        }
+
+        function persistDraftPayload(payload) {
+            try {
+                localStorage.setItem(draftStorageKey(), JSON.stringify(payload));
+            } catch (e) {
+                console.warn('下書き保存に失敗:', e);
+            }
+        }
+
+        function flushDraftSaveSync() {
+            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
+            if (!document.getElementById('checklist-container')) return;
+            clearTimeout(draftSaveTimer);
+            if (currentState.category === '温度チェック') {
+                persistDraftPayload({ v: 1, kind: 'temp', checks: collectTempDraftState() });
+            } else if (currentState.category === 'HACCPチェック') {
+                persistDraftPayload({ v: 1, kind: 'haccp', checks: collectHaccpDraftState() });
+            }
+        }
+
+        function scheduleDraftSave() {
+            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
+            clearTimeout(draftSaveTimer);
+            draftSaveTimer = setTimeout(flushDraftSaveSync, 450);
+        }
+
+        function attachChecklistDraftListeners() {
+            const el = document.getElementById('checklist-container');
+            if (!el || el._tenpoDraftBound) return;
+            el._tenpoDraftBound = true;
+            el.addEventListener('change', scheduleDraftSave);
+            el.addEventListener('input', scheduleDraftSave);
+        }
+
+        function tempDraftHasAnyValue(checks) {
+            return checks.some((r) =>
+                (r.temperature && String(r.temperature).trim() !== '') ||
+                r.drainChecked ||
+                (r.contact && String(r.contact).trim() !== '') ||
+                (r.action && String(r.action).trim() !== ''),
+            );
+        }
+
+        function haccpDraftHasAnyValue(checks) {
+            return checks.some((r) =>
+                (r.status && r.status.trim() !== '') ||
+                (r.timeSlot && r.timeSlot.trim() !== '') ||
+                (r.staff && r.staff.trim() !== '') ||
+                (r.action && r.action.trim() !== '') ||
+                (r.contact && r.contact.trim() !== ''),
+            );
+        }
+
+        function applyTempDraft(checks) {
+            if (!Array.isArray(checks)) return;
+            checks.forEach((row) => {
+                const card = Array.from(document.querySelectorAll('#checklist-container [data-equipment-id]'))
+                    .find((c) => c.dataset.equipmentId === String(row.equipmentId));
+                if (!card) return;
+                const t = card.querySelector('[data-field="temperature"]');
+                if (t && row.temperature) {
+                    t.value = row.temperature;
+                    t.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const d = card.querySelector('[data-field="drain"]');
+                if (d) d.checked = !!row.drainChecked;
+                const c = card.querySelector('[data-field="contact"]');
+                if (c && row.contact) {
+                    c.value = row.contact;
+                    c.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const a = card.querySelector('[data-field="action"]');
+                if (a && row.action) {
+                    a.value = row.action;
+                    a.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
+        function applyHaccpDraft(checks) {
+            if (!Array.isArray(checks)) return;
+            checks.forEach((row) => {
+                const card = Array.from(document.querySelectorAll('#checklist-container [data-item-id]'))
+                    .find((c) => c.dataset.itemId === String(row.itemId));
+                if (!card) return;
+                [['status', row.status], ['timeSlot', row.timeSlot], ['staff', row.staff], ['action', row.action], ['contact', row.contact]].forEach(([field, val]) => {
+                    const sel = card.querySelector(`[data-field="${field}"]`);
+                    if (sel && val) {
+                        sel.value = val;
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            });
+        }
+
+        function restoreChecklistDraft() {
+            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
+            let raw;
+            try {
+                raw = localStorage.getItem(draftStorageKey());
+            } catch (e) {
+                return;
+            }
+            if (!raw) return;
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch {
+                return;
+            }
+            const toastKey = `tenpo-draft-toast:${draftStorageKey()}`;
+            if (data.kind === 'temp' && currentState.category === '温度チェック' && Array.isArray(data.checks)) {
+                if (!tempDraftHasAnyValue(data.checks)) return;
+                applyTempDraft(data.checks);
+                if (!sessionStorage.getItem(toastKey)) {
+                    sessionStorage.setItem(toastKey, '1');
+                    showAppAlert('保存前の入力を復元しました', true);
+                }
+            } else if (data.kind === 'haccp' && currentState.category === 'HACCPチェック' && Array.isArray(data.checks)) {
+                if (!haccpDraftHasAnyValue(data.checks)) return;
+                applyHaccpDraft(data.checks);
+                if (!sessionStorage.getItem(toastKey)) {
+                    sessionStorage.setItem(toastKey, '1');
+                    showAppAlert('保存前の入力を復元しました', true);
+                }
+            }
+        }
+
+        function clearChecklistDraft() {
+            try {
+                localStorage.removeItem(draftStorageKey());
+            } catch (e) { /* ignore */ }
+        }
+
+        function clearValidationHighlights() {
+            document.querySelectorAll('#checklist-container select.validation-field-error').forEach((el) => el.classList.remove('validation-field-error'));
+        }
+
+        function markSelectInvalid(sel) {
+            if (sel && sel.tagName === 'SELECT') sel.classList.add('validation-field-error');
+        }
+
+        function validateTempBeforeSave() {
+            clearValidationHighlights();
+            const errors = [];
+            let firstInvalid = null;
+            document.querySelectorAll('#checklist-container [data-equipment-id]').forEach((card) => {
+                const eqId = card.dataset.equipmentId;
+                const itemName = equipmentMaster[eqId]?.name || '設備';
+                const tempSel = card.querySelector('[data-field="temperature"]');
+                if (tempSel && tempSel.value === '') {
+                    errors.push(`${itemName}：検温結果`);
+                    markSelectInvalid(tempSel);
+                    firstInvalid = firstInvalid || tempSel;
+                }
+                const contact = card.querySelector('[data-field="contact"]');
+                if (contact && contact.value === '') {
+                    errors.push(`${itemName}：連絡先`);
+                    markSelectInvalid(contact);
+                    firstInvalid = firstInvalid || contact;
+                }
+                const action = card.querySelector('[data-field="action"]');
+                if (action && action.value === '') {
+                    errors.push(`${itemName}：処置`);
+                    markSelectInvalid(action);
+                    firstInvalid = firstInvalid || action;
+                }
+            });
+            return { ok: errors.length === 0, errors, firstInvalid };
+        }
+
+        function validateHaccpBeforeSave() {
+            clearValidationHighlights();
+            const errors = [];
+            let firstInvalid = null;
+            document.querySelectorAll('#checklist-container [data-item-id]').forEach((card) => {
+                const itemId = card.dataset.itemId;
+                const itemName = haccpMaster[itemId]?.name || '項目';
+                const fields = [
+                    { el: card.querySelector('[data-field="status"]'), label: '作業状況' },
+                    { el: card.querySelector('[data-field="timeSlot"]'), label: '作業時間帯' },
+                    { el: card.querySelector('[data-field="staff"]'), label: '実施者' },
+                    { el: card.querySelector('[data-field="action"]'), label: '異常時の処置' },
+                    { el: card.querySelector('[data-field="contact"]'), label: '連絡先' },
+                ];
+                fields.forEach(({ el, label }) => {
+                    if (el && el.value === '') {
+                        errors.push(`${itemName}：${label}`);
+                        markSelectInvalid(el);
+                        firstInvalid = firstInvalid || el;
+                    }
+                });
+            });
+            return { ok: errors.length === 0, errors, firstInvalid };
+        }
+
+        function showValidationFailureDialog(errors) {
+            const list = errors.slice(0, 25).map((e) => `<li>${escapeHtml(e)}</li>`).join('');
+            const more = errors.length > 25 ? `<p class="text-xs text-gray-500 mt-2">他 ${errors.length - 25} 件</p>` : '';
+            const content = `<p class="text-sm text-gray-700 mb-3">「選択…」のままの項目があります。赤枠の箇所を入力してから保存してください。</p><ul class="list-disc list-inside text-sm text-gray-800 max-h-60 overflow-y-auto space-y-1">${list}</ul>${more}`;
+            const buttons = [{
+                id: 'validation-fail-ok',
+                text: 'OK',
+                classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700',
+                onClick: () => hideModal('validation-fail-modal'),
+            }];
+            createModal('validation-fail-modal', '保存できません', content, buttons);
+        }
+
         // --- 保存処理 ---
         async function handleGlobalSave() {
             const dateStr = new Date().toISOString().slice(0, 10);
@@ -685,6 +967,23 @@
             const categoryToLogType = { '温度チェック': 'temperature', 'HACCPチェック': 'haccp', 'トイレ掃除': 'toilet_cleaning' };
             const logCategory = categoryToLogType[currentState.category];
             if (!logCategory) return;
+
+            if (currentState.category === '温度チェック') {
+                const v = validateTempBeforeSave();
+                if (!v.ok) {
+                    v.firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showValidationFailureDialog(v.errors);
+                    return;
+                }
+            }
+            if (currentState.category === 'HACCPチェック') {
+                const v = validateHaccpBeforeSave();
+                if (!v.ok) {
+                    v.firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showValidationFailureDialog(v.errors);
+                    return;
+                }
+            }
 
             let checks;
             if (currentState.category === '温度チェック') {
@@ -721,6 +1020,8 @@
             showLoading(true, '保存中...');
             try {
                 await addDoc(collection(db, entriesPath), logData);
+                clearChecklistDraft();
+                clearValidationHighlights();
                 showAppAlert('保存しました。');
                 await updateCategoryStatus();
             } catch (error) {
@@ -959,10 +1260,15 @@
                         tempDisplay = `<span class="${tempClass}">${check.temperature} ℃</span>`;
                     }
 
+                    const needsDrain = itemInfo.manual_drain === true;
+                    const drainLine = needsDrain
+                        ? `<p>排水: ${check.drainChecked === true ? '実施' : '<span class="text-red-500 font-bold">未実施</span>'}</p>`
+                        : '';
+
                     detailHTML += `<div class="p-2 bg-gray-50 rounded mt-2">
                         <p class="font-semibold">${itemName}</p>
                         <p>温度: ${tempDisplay}</p>
-                        <p>排水: ${check.drainChecked ? '実施' : '<span class="text-red-500 font-bold">未実施</span>'}</p>
+                        ${drainLine}
                         <p>連絡先: ${check.contact || '未入力'}</p>
                         <p>処置: ${check.action || '未入力'}</p>
                     </div>`;
@@ -1764,7 +2070,7 @@
                         log: latestLog
                     });
                 }
-                 if (check.drainChecked === false) {
+                if (itemInfo.manual_drain === true && check.drainChecked === false) {
                     issueCount++;
                     issues.push({
                         text: `「${itemInfo.name}」の排水が未実施`,
