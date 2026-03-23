@@ -890,26 +890,26 @@
         }
 
         function showLogsForDay(date, logs) {
-             logs.sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-                
-            let listContent = logs.map(log => {
+            const ordered = [...logs].sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis());
+
+            let listContent = ordered.map(log => {
                 const staffId = log.checkStaffId || log.staffId || 'unknown';
                 const staffInfo = staffMaster[staffId] || {};
                 const staffName = staffInfo.nickname || `${staffInfo.lastName || ''} ${staffInfo.firstName || ''}`.trim() || '不明';
                 const time = log.createdAt.toDate().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 return `<button data-log-id="${log.id}" class="history-item-btn w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg">${time} - ${staffName}</button>`;
             }).join('');
-            
+
             const buttons = [
-                { id: 'print-day-history-btn', text: 'この日の履歴をPDF保存', classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700', onClick: () => printHistory(logs, date)},
+                { id: 'print-day-history-btn', text: 'この日の履歴をPDF保存', classes: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700', onClick: () => printHistory(ordered, date)},
                 { id: 'day-logs-close-btn', text: '閉じる', classes: 'px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300', onClick: () => hideModal('day-logs-modal')}
             ];
             createModal('day-logs-modal', `${date.toLocaleDateString('ja-JP')} の履歴`, `<div class="space-y-2">${listContent}</div>`, buttons);
-            
+
             document.querySelectorAll('.history-item-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const logId = btn.dataset.logId;
-                    const logData = logs.find(log => log.id === logId);
+                    const logData = ordered.find(log => log.id === logId);
                     showHistoryDetail(logData);
                 });
             });
