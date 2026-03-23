@@ -1,6 +1,13 @@
 {
-  "version": "1.1.16",
+  "version": "1.1.17",
   "deployments": [
+    {
+      "version": "1.1.17",
+      "deployedAt": "2026-03-23T15:23:48.553Z",
+      "deployedBy": "fukitakatsumi",
+      "success": true,
+      "error": null
+    },
     {
       "version": "1.1.15",
       "deployedAt": "2026-03-23T15:19:03.258Z",
