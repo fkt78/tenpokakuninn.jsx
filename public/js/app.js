@@ -1174,21 +1174,80 @@
             createModal('history-detail-modal', '履歴詳細', detailHTML, buttons);
         }
 
+        function logRecordToDate(log) {
+            if (!log?.createdAt) return null;
+            if (typeof log.createdAt.toDate === 'function') return log.createdAt.toDate();
+            if (typeof log.createdAt.seconds === 'number') {
+                return new Date(log.createdAt.seconds * 1000 + (log.createdAt.nanoseconds || 0) / 1e6);
+            }
+            return null;
+        }
+
+        function formatPdfFileStem(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const h = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const s = String(d.getSeconds()).padStart(2, '0');
+            return `${y}${m}${day}_${h}${min}${s}`;
+        }
+
+        /** カレンダーで選んだ日、またはログ群から PDF 見出し用・ファイル名用ラベルを決定 */
+        function getPdfTitleAndFileStem(calendarDate, logs) {
+            if (calendarDate instanceof Date && !Number.isNaN(calendarDate.getTime())) {
+                const display = calendarDate.toLocaleDateString('ja-JP');
+                const y = calendarDate.getFullYear();
+                const m = String(calendarDate.getMonth() + 1).padStart(2, '0');
+                const day = String(calendarDate.getDate()).padStart(2, '0');
+                return { displayTitle: `${display}（${logs.length}件）`, fileStem: `${y}${m}${day}` };
+            }
+            if (logs?.length === 1) {
+                const d = logRecordToDate(logs[0]);
+                if (d) {
+                    return {
+                        displayTitle: d.toLocaleString('ja-JP'),
+                        fileStem: formatPdfFileStem(d),
+                    };
+                }
+            }
+            if (logs?.length > 1) {
+                const dates = logs.map(logRecordToDate).filter(Boolean).sort((a, b) => a - b);
+                if (dates.length) {
+                    const a = dates[0];
+                    const b = dates[dates.length - 1];
+                    if (a.getTime() === b.getTime()) {
+                        return {
+                            displayTitle: `${a.toLocaleString('ja-JP')}（${logs.length}件）`,
+                            fileStem: formatPdfFileStem(a),
+                        };
+                    }
+                    return {
+                        displayTitle: `${a.toLocaleString('ja-JP')} 〜 ${b.toLocaleString('ja-JP')}（${logs.length}件）`,
+                        fileStem: `${formatPdfFileStem(a)}-${formatPdfFileStem(b)}`,
+                    };
+                }
+            }
+            const now = new Date();
+            return { displayTitle: now.toLocaleString('ja-JP'), fileStem: formatPdfFileStem(now) };
+        }
+
         async function printHistory(logs, date = null) {
             showLoading(true, 'PDFを生成中...');
             const { jsPDF } = window.jspdf;
-            
+
+            const { displayTitle, fileStem } = getPdfTitleAndFileStem(date, logs);
+
             let printContainer = document.createElement('div');
             printContainer.id = 'print-container-temp';
             printContainer.style.position = 'absolute';
             printContainer.style.left = '-9999px';
             printContainer.style.width = '210mm';
-            
-            const titleDate = date ? date.toLocaleDateString('ja-JP') : '全期間';
+
             let printContent = `
                 <div class="p-8">
                     <h1 class="text-2xl font-bold mb-4">${currentState.storeName}</h1>
-                    <h2 class="text-xl font-semibold mb-6">${currentState.category} - ${titleDate} 履歴</h2>
+                    <h2 class="text-xl font-semibold mb-6">${currentState.category} - ${displayTitle} 履歴</h2>
             `;
             logs.forEach(log => {
                 printContent += generateLogDetailHTML(log);
@@ -1208,21 +1267,17 @@
                 const ratio = imgHeight / imgWidth;
                 const totalHeight = pdfWidth * ratio;
 
-                if (totalHeight > pageHeight) {
-                    let y = 0;
-                    pdf.addImage(imgData, 'PNG', 0, y, pdfWidth, totalHeight);
-                    let remaining = totalHeight - pageHeight;
-                    while (remaining > 0) {
-                        y -= pageHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, y, pdfWidth, totalHeight);
-                        remaining -= pageHeight;
-                    }
-                } else {
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, totalHeight);
+                let drawW = pdfWidth;
+                let drawH = totalHeight;
+                if (drawH > pageHeight) {
+                    const scale = pageHeight / drawH;
+                    drawW = pdfWidth * scale;
+                    drawH = pageHeight;
                 }
-                
-                pdf.save(`${currentState.category}_${titleDate}_履歴.pdf`);
+                const x = (pdfWidth - drawW) / 2;
+                pdf.addImage(imgData, 'PNG', x, 0, drawW, drawH);
+
+                pdf.save(`${currentState.category}_${fileStem}_履歴.pdf`);
 
             } catch (error) {
                 console.error("PDFの生成に失敗しました:", error);
