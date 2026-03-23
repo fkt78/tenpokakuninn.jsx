@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 本番(Firebase Hosting)の正本は public/index.html。ここを編集する場合は public 側へ反映してください。 -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
+<!-- Firebase Hosting デプロイ対象の正本（ルートの tenpokanri.jsx 等は参照用・同期は手動） -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>店舗チェックアプリ</title>
+    <title>店舗引き継ぎ・確認アプリ | 店舗チェック</title>
+    <meta name="description" content="店舗の引き継ぎ確認・温度・HACCP・トイレ掃除など各種チェックを記録する現場向けアプリです。">
     <!-- Tailwind CSSとFont AwesomeをCDNから読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -116,8 +118,8 @@
         <div id="main-app-view">
             <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-8 space-y-6">
                 <div class="text-center">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">店舗チェック</h1>
-                    <p class="text-gray-500 mt-1">情報を選択してください</p>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">店舗引き継ぎ・確認</h1>
+                    <p class="text-gray-500 mt-1">店舗・担当を選び、引き継ぎや各種チェックを記録します</p>
                 </div>
                 <!-- ステップ1: 店舗と担当者を選択 -->
                 <div id="step-1" class="step-card space-y-4">
@@ -172,6 +174,20 @@
         <div id="dashboard-view" class="hidden-view">
             <!-- ここにダッシュボードのHTMLが動的に生成される -->
         </div>
+
+        <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+            <button type="button" id="version-info-btn" class="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded px-1">アプリ情報を読み込み中…</button>
+        </footer>
+    </div>
+
+    <div id="version-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black bg-opacity-40 p-4" aria-modal="true" role="dialog">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center border-b px-4 py-3 shrink-0">
+                <h2 class="text-lg font-bold text-gray-800">リリース・デプロイ履歴</h2>
+                <button type="button" id="version-modal-close" class="text-gray-500 hover:text-gray-800 text-2xl leading-none px-1" aria-label="閉じる">&times;</button>
+            </div>
+            <div class="px-4 py-3 overflow-y-auto text-sm text-gray-700" id="version-modal-body"></div>
+        </div>
     </div>
     
     <!-- JavaScript モジュール -->
@@ -185,9 +201,99 @@
         let app, auth, db; // Firebaseインスタンス
         const dbBasePath = 'artifacts/general-master-data/public/data';
 
+        /** 指定日のログ直下パス: .../logs/{category}/{storeId}/{yyyy-mm-dd} */
+        function logDayPath(logCategory, storeId, dateStr) {
+            return `${dbBasePath}/logs/${logCategory}/${storeId}/${dateStr}`;
+        }
+        /** 温度・HACCP・トイレなど entries サブコレクションのパス */
+        function logEntriesPath(logCategory, storeId, dateStr) {
+            return `${logDayPath(logCategory, storeId, dateStr)}/entries`;
+        }
+        /** 引き継ぎ: 日付直下の handover1Order / handover2Order コレクション */
+        function handoverOrderPath(storeId, dateStr, orderType) {
+            return `${logDayPath('handover', storeId, dateStr)}/${orderType}`;
+        }
+
         let storesMaster = {}, staffMaster = {}, equipmentMaster = {}, storeSettings = {};
         let haccpMaster = {}, toiletMaster = {}, handoverTaskMaster = {};
         let currentState = { store: '', storeName: '', staff: '', staffName: '', category: '', orderType: '' };
+        let appMetaCache = null;
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        async function loadAppMetaAndBindUi() {
+            const btn = document.getElementById('version-info-btn');
+            const modal = document.getElementById('version-modal');
+            const modalBody = document.getElementById('version-modal-body');
+            const modalClose = document.getElementById('version-modal-close');
+            if (!btn || !modal || !modalBody || !modalClose) return;
+
+            try {
+                const res = await fetch(`/app-meta.json?cb=${Date.now()}`, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                appMetaCache = await res.json();
+                btn.textContent = `v${appMetaCache.version} · リリース履歴`;
+                btn.classList.remove('text-red-600');
+            } catch (e) {
+                btn.textContent = 'アプリ情報を取得できませんでした';
+                btn.classList.add('text-red-600');
+                console.warn('app-meta load failed', e);
+            }
+
+            function renderModalBody() {
+                if (!appMetaCache) {
+                    modalBody.innerHTML = '<p class="text-red-600">app-meta.json を読み込めませんでした。</p>';
+                    return;
+                }
+                const rows = (appMetaCache.deployments || []).map((d) => {
+                    const ok = d.success !== false;
+                    const badge = ok
+                        ? '<span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">成功</span>'
+                        : '<span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">失敗</span>';
+                    const when = d.deployedAt ? new Date(d.deployedAt).toLocaleString('ja-JP') : '—';
+                    const err = !ok && d.error
+                        ? `<pre class="mt-2 text-xs text-red-800 whitespace-pre-wrap break-all bg-red-50 p-2 rounded max-h-36 overflow-y-auto">${escapeHtml(d.error)}</pre>`
+                        : '';
+                    return `<li class="border-b border-gray-100 py-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-mono font-semibold">v${escapeHtml(String(d.version))}</span>
+                            ${badge}
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">${escapeHtml(when)} · ${escapeHtml(d.deployedBy || '—')}</p>
+                        ${err}
+                    </li>`;
+                }).join('');
+                modalBody.innerHTML = `
+                    <p class="mb-3 text-gray-600">現在のバージョン: <strong class="font-mono">v${escapeHtml(appMetaCache.version)}</strong></p>
+                    <p class="text-xs text-gray-500 mb-3">デプロイのたびに記録されます（失敗した試行も version・担当者・エラー内容が残ります）。</p>
+                    <ul class="list-none p-0 m-0">${rows || '<li class="text-gray-500 py-2">履歴はまだありません。</li>'}</ul>
+                `;
+            }
+
+            function openModal() {
+                renderModalBody();
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            function closeModal() {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+
+            btn.addEventListener('click', openModal);
+            modalClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        }
         
         // --- DOM要素の取得 ---
         const loadingOverlay = document.getElementById('loading-overlay');
@@ -207,6 +313,7 @@
                 populateDropdowns();
                 setupEventListeners();
                 showLoading(false);
+                await loadAppMetaAndBindUi();
             } catch (error) {
                  console.error("Initialization failed:", error);
                  showAppAlert(`致命的なエラー: ${error.message}`, false);
@@ -256,17 +363,14 @@
             };
 
             try {
-                const generalMasterBasePath = 'artifacts/general-master-data/public/data';
-                const employeeBasePath = 'artifacts/general-master-data/public/data';
-
                 const masterPaths = {
-                    stores: `${generalMasterBasePath}/stores`,
-                    equipment: `${generalMasterBasePath}/fixtures`,
-                    settings: `${generalMasterBasePath}/storeSettings`,
-                    haccp: `${generalMasterBasePath}/haccp`,
-                    toilet: `${generalMasterBasePath}/toilet_cleaning`,
-                    handover: `${generalMasterBasePath}/handovers`,
-                    staff: `${employeeBasePath}/employees`
+                    stores: `${dbBasePath}/stores`,
+                    equipment: `${dbBasePath}/fixtures`,
+                    settings: `${dbBasePath}/storeSettings`,
+                    haccp: `${dbBasePath}/haccp`,
+                    toilet: `${dbBasePath}/toilet_cleaning`,
+                    handover: `${dbBasePath}/handovers`,
+                    staff: `${dbBasePath}/employees`
                 };
 
                 const promises = Object.entries(masterPaths).map(async ([key, path]) => {
@@ -531,39 +635,45 @@
                 try {
                     let count = 0;
                     let lastLog = null;
-                    const logCollectionPath = `${dbBasePath}/logs/${logCategory}/${currentState.store}/${dateStr}`;
+                    const storeId = currentState.store;
 
                     if (logCategory === 'handover') {
                         const [snap1, snap2] = await Promise.all([
-                            getDocs(query(collection(db, `${logCollectionPath}/handover1Order`))).catch(()=>({docs:[]})),
-                            getDocs(query(collection(db, `${logCollectionPath}/handover2Order`))).catch(()=>({docs:[]}))
+                            getDocs(collection(db, handoverOrderPath(storeId, dateStr, 'handover1Order'))),
+                            getDocs(collection(db, handoverOrderPath(storeId, dateStr, 'handover2Order'))),
                         ]);
                         const allLogs = [...snap1.docs, ...snap2.docs].map(d => d.data());
                         count = allLogs.length;
                         if (count > 0) {
-                            allLogs.sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+                            allLogs.sort((a, b) => {
+                                const ma = a.createdAt?.toMillis?.() ?? 0;
+                                const mb = b.createdAt?.toMillis?.() ?? 0;
+                                return mb - ma;
+                            });
                             lastLog = allLogs[0];
                         }
                     } else {
-                        const logRef = collection(db, `${logCollectionPath}/entries`);
+                        const logRef = collection(db, logEntriesPath(logCategory, storeId, dateStr));
                         const q = query(logRef, orderBy('createdAt', 'desc'));
                         const snapshot = await getDocs(q);
                         count = snapshot.size;
                         if (!snapshot.empty) lastLog = snapshot.docs[0].data();
                     }
-                    
-                    if (lastLog) {
+
+                    if (lastLog && lastLog.createdAt?.toDate) {
                         const staffId = lastLog.checkStaffId || lastLog.staffId || 'unknown';
                         const staffInfo = staffMaster[staffId] || {};
                         const staffName = staffInfo.nickname || `${staffInfo.lastName || ''} ${staffInfo.firstName || ''}`.trim() || '不明';
                         const time = lastLog.createdAt.toDate().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                         statusEl.textContent = `最終更新: ${staffName} ${time} (本日${count}回)`;
+                    } else if (count > 0) {
+                        statusEl.textContent = `本日${count}回（日時の表示形式が不正です）`;
                     } else {
                         statusEl.textContent = '（本日未実施）';
                     }
                 } catch (e) {
                     console.error(`Status update failed for ${categoryName}:`, e);
-                    statusEl.textContent = '（情報取得エラー）';
+                    statusEl.textContent = '（情報取得エラー・ネットワークまたは権限を確認）';
                 }
             }
         }
@@ -606,11 +716,11 @@
                 data: { checks }, 
                 createdAt: serverTimestamp() 
             };
-            const logCollectionPath = `${dbBasePath}/logs/${logCategory}/${currentState.store}/${dateStr}/entries`;
-            
+            const entriesPath = logEntriesPath(logCategory, currentState.store, dateStr);
+
             showLoading(true, '保存中...');
             try {
-                await addDoc(collection(db, logCollectionPath), logData);
+                await addDoc(collection(db, entriesPath), logData);
                 showAppAlert('保存しました。');
                 await updateCategoryStatus();
             } catch (error) {
@@ -652,11 +762,11 @@
             };
             const dateStr = new Date().toISOString().slice(0, 10);
 
-            const logCollectionPath = `${dbBasePath}/logs/handover/${currentState.store}/${dateStr}/${orderType}`;
-            
+            const orderPath = handoverOrderPath(currentState.store, dateStr, orderType);
+
             showLoading(true, '保存中...');
             try {
-                await addDoc(collection(db, logCollectionPath), logData);
+                await addDoc(collection(db, orderPath), logData);
                 showAppAlert(`${card.querySelector('h3').textContent} の情報を保存しました。`);
                 await updateCategoryStatus();
             } catch (error) {
@@ -1588,32 +1698,49 @@
         async function fetchDashboardData(date) {
             const dateStr = date.toISOString().slice(0, 10);
             const storeId = currentState.store;
-            const categoryMap = {
-                'temperature': `${dbBasePath}/logs/temperature/${storeId}/${dateStr}/entries`,
-                'haccp': `${dbBasePath}/logs/haccp/${storeId}/${dateStr}/entries`,
-                'toilet_cleaning': `${dbBasePath}/logs/toilet_cleaning/${storeId}/${dateStr}/entries`,
-            };
+            const fetchErrors = [];
 
-            const promises = Object.entries(categoryMap).map(async ([key, path]) => {
-                const snapshot = await getDocs(query(collection(db, path))).catch(() => ({ docs: [] }));
-                return { [key]: snapshot.docs.map(d => ({...d.data(), id: d.id})) };
-            });
+            async function loadEntries(key, logCategory) {
+                const path = logEntriesPath(logCategory, storeId, dateStr);
+                try {
+                    const snapshot = await getDocs(query(collection(db, path)));
+                    return snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+                } catch (e) {
+                    console.error(`ダッシュボード取得失敗 (${key}):`, e);
+                    fetchErrors.push(`${key}: ${e.message || String(e)}`);
+                    return [];
+                }
+            }
 
-            const handoverPath1 = `${dbBasePath}/logs/handover/${storeId}/${dateStr}/handover1Order`;
-            const handoverPath2 = `${dbBasePath}/logs/handover/${storeId}/${dateStr}/handover2Order`;
-            const handoverPromise = Promise.all([
-                getDocs(collection(db, handoverPath1)).catch(() => ({ docs: [] })),
-                getDocs(collection(db, handoverPath2)).catch(() => ({ docs: [] })),
-            ]).then(([snap1, snap2]) => {
-                const logs1 = snap1.docs.map(d => ({ ...d.data(), id: d.id, orderType: 'handover1Order' }));
-                const logs2 = snap2.docs.map(d => ({ ...d.data(), id: d.id, orderType: 'handover2Order' }));
-                return { handover: [...logs1, ...logs2] };
-            });
+            const [temperature, haccp, toilet_cleaning] = await Promise.all([
+                loadEntries('temperature', 'temperature'),
+                loadEntries('haccp', 'haccp'),
+                loadEntries('toilet_cleaning', 'toilet_cleaning'),
+            ]);
 
-            promises.push(handoverPromise);
-            
-            const results = await Promise.all(promises);
-            return Object.assign({}, ...results);
+            let handover = [];
+            try {
+                const [snap1, snap2] = await Promise.all([
+                    getDocs(collection(db, handoverOrderPath(storeId, dateStr, 'handover1Order'))),
+                    getDocs(collection(db, handoverOrderPath(storeId, dateStr, 'handover2Order'))),
+                ]);
+                handover = [
+                    ...snap1.docs.map(d => ({ ...d.data(), id: d.id, orderType: 'handover1Order' })),
+                    ...snap2.docs.map(d => ({ ...d.data(), id: d.id, orderType: 'handover2Order' })),
+                ];
+            } catch (e) {
+                console.error('ダッシュボード取得失敗 (handover):', e);
+                fetchErrors.push(`handover: ${e.message || String(e)}`);
+            }
+
+            if (fetchErrors.length > 0) {
+                showAppAlert(
+                    `ダッシュボードの一部データを取得できませんでした。\n${fetchErrors.join('\n')}`,
+                    false,
+                );
+            }
+
+            return { temperature, haccp, toilet_cleaning, handover };
         }
 
         function processTempLogs(logs) {

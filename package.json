@@ -1,0 +1,9 @@
+{
+  "name": "tenpo-hikitugi-kakunin",
+  "private": true,
+  "scripts": {
+    "version:major": "node scripts/manage-version.mjs bump major",
+    "version:minor": "node scripts/manage-version.mjs bump minor",
+    "version:patch": "node scripts/manage-version.mjs bump patch"
+  }
+}

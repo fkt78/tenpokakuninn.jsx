@@ -1,11 +1,22 @@
 {
   "hosting": {
-    "site": "tenpokakuninn-app",
+    "site": "tenpo-hikitugi-kakunin",
     "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/app-meta.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
     ]
   },
   "firestore": {
