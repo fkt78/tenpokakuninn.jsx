@@ -709,77 +709,6 @@
             document.querySelectorAll('#checklist-container select.validation-field-error').forEach((el) => el.classList.remove('validation-field-error'));
         }
 
-        function markSelectInvalid(sel) {
-            if (sel && sel.tagName === 'SELECT') sel.classList.add('validation-field-error');
-        }
-
-        function validateTempBeforeSave() {
-            clearValidationHighlights();
-            const errors = [];
-            let firstInvalid = null;
-            document.querySelectorAll('#checklist-container [data-equipment-id]').forEach((card) => {
-                const eqId = card.dataset.equipmentId;
-                const itemName = equipmentMaster[eqId]?.name || '設備';
-                const tempSel = card.querySelector('[data-field="temperature"]');
-                if (tempSel && tempSel.value === '') {
-                    errors.push(`${itemName}：検温結果`);
-                    markSelectInvalid(tempSel);
-                    firstInvalid = firstInvalid || tempSel;
-                }
-                const contact = card.querySelector('[data-field="contact"]');
-                if (contact && contact.value === '') {
-                    errors.push(`${itemName}：連絡先`);
-                    markSelectInvalid(contact);
-                    firstInvalid = firstInvalid || contact;
-                }
-                const action = card.querySelector('[data-field="action"]');
-                if (action && action.value === '') {
-                    errors.push(`${itemName}：処置`);
-                    markSelectInvalid(action);
-                    firstInvalid = firstInvalid || action;
-                }
-            });
-            return { ok: errors.length === 0, errors, firstInvalid };
-        }
-
-        function validateHaccpBeforeSave() {
-            clearValidationHighlights();
-            const errors = [];
-            let firstInvalid = null;
-            document.querySelectorAll('#checklist-container [data-item-id]').forEach((card) => {
-                const itemId = card.dataset.itemId;
-                const itemName = haccpMaster[itemId]?.name || '項目';
-                const fields = [
-                    { el: card.querySelector('[data-field="status"]'), label: '作業状況' },
-                    { el: card.querySelector('[data-field="timeSlot"]'), label: '作業時間帯' },
-                    { el: card.querySelector('[data-field="staff"]'), label: '実施者' },
-                    { el: card.querySelector('[data-field="action"]'), label: '異常時の処置' },
-                    { el: card.querySelector('[data-field="contact"]'), label: '連絡先' },
-                ];
-                fields.forEach(({ el, label }) => {
-                    if (el && el.value === '') {
-                        errors.push(`${itemName}：${label}`);
-                        markSelectInvalid(el);
-                        firstInvalid = firstInvalid || el;
-                    }
-                });
-            });
-            return { ok: errors.length === 0, errors, firstInvalid };
-        }
-
-        function showValidationFailureDialog(errors) {
-            const list = errors.slice(0, 25).map((e) => `<li>${escapeHtml(e)}</li>`).join('');
-            const more = errors.length > 25 ? `<p class="text-xs text-gray-500 mt-2">他 ${errors.length - 25} 件</p>` : '';
-            const content = `<p class="text-sm text-gray-700 mb-3">「選択…」のままの項目があります。赤枠の箇所を入力してから保存してください。</p><ul class="list-disc list-inside text-sm text-gray-800 max-h-60 overflow-y-auto space-y-1">${list}</ul>${more}`;
-            const buttons = [{
-                id: 'validation-fail-ok',
-                text: 'OK',
-                classes: 'hig-btn-primary',
-                onClick: () => hideModal('validation-fail-modal'),
-            }];
-            createModal('validation-fail-modal', '保存できません', content, buttons);
-        }
-
         // --- 保存処理 ---
         function showPostSaveBanner() {
             document.getElementById('post-save-saved-banner')?.remove();
@@ -806,22 +735,8 @@
             const logCategory = categoryToLogType[currentState.category];
             if (!logCategory) return;
 
-            if (currentState.category === '温度チェック') {
-                const v = validateTempBeforeSave();
-                if (!v.ok) {
-                    v.firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    showValidationFailureDialog(v.errors);
-                    return;
-                }
-            }
-            if (currentState.category === 'HACCPチェック') {
-                const v = validateHaccpBeforeSave();
-                if (!v.ok) {
-                    v.firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    showValidationFailureDialog(v.errors);
-                    return;
-                }
-            }
+            /* 未使用設備などで検温・連絡先・処置が空のまま保存できるようにする（必須チェックは行わない） */
+            clearValidationHighlights();
 
             let checks;
             if (currentState.category === '温度チェック') {
