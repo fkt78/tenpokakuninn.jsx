@@ -459,6 +459,11 @@
             }
         }
 
+        /** 冷凍庫向け: 適温上限が 0℃ 以下のとき霜取り表示 DF を選べる */
+        function isFreezerTempRange(temp_min, temp_max) {
+            return !isNaN(temp_min) && !isNaN(temp_max) && temp_max <= 0;
+        }
+
         function createDropdown(options, isObject = false, data = {}) {
             const select = document.createElement('select');
             select.className = 'hig-field';
@@ -1022,9 +1027,16 @@
                     const tempValue = parseFloat(check.temperature);
                     let tempDisplay = `<span class="${warnClass}">未入力</span>`;
                     
-                    if (check.temperature !== null) {
-                        const tempClass = (!isNaN(tempValue) && !isNaN(temp_min) && !isNaN(temp_max) && tempValue >= temp_min && tempValue <= temp_max) ? '' : warnClass;
-                        tempDisplay = tempClass ? `<span class="${tempClass}">${check.temperature} ℃</span>` : `${check.temperature} ℃`;
+                    if (check.temperature !== null && check.temperature !== '') {
+                        const rawT = String(check.temperature).trim();
+                        if (rawT === 'DF') {
+                            tempDisplay = 'DF（霜取り中）';
+                        } else if (!isNaN(tempValue)) {
+                            const tempClass = (!isNaN(temp_min) && !isNaN(temp_max) && tempValue >= temp_min && tempValue <= temp_max) ? '' : warnClass;
+                            tempDisplay = tempClass ? `<span class="${tempClass}">${check.temperature} ℃</span>` : `${check.temperature} ℃`;
+                        } else {
+                            tempDisplay = escapeHtml(rawT);
+                        }
                     }
 
                     const needsDrain = itemInfo.manual_drain === true;
@@ -1490,7 +1502,14 @@
                 if(hasTempRange){
                     const options = [];
                     for(let i = Math.floor(temp_min - 5); i <= Math.ceil(temp_max + 5); i+=0.5) options.push(i.toFixed(1));
-                    tempDropdownHTML = createDropdown(options).outerHTML;
+                    const tempSel = createDropdown(options);
+                    if (isFreezerTempRange(temp_min, temp_max)) {
+                        const dfOpt = document.createElement('option');
+                        dfOpt.value = 'DF';
+                        dfOpt.textContent = 'DF（霜取り中）';
+                        tempSel.insertBefore(dfOpt, tempSel.children[1]);
+                    }
+                    tempDropdownHTML = tempSel.outerHTML;
                 } else {
                     tempDropdownHTML = '<input type="number" class="mt-1 block w-full bg-gray-200 border rounded-lg p-2.5" disabled placeholder="温度範囲未設定">';
                 }
@@ -1516,7 +1535,13 @@
                 if(hasTempRange){
                     const tempSelect = card.querySelector('[data-field="temperature"]');
                     tempSelect?.addEventListener('change', (e) => {
-                        const value = parseFloat(e.target.value);
+                        const raw = e.target.value;
+                        if (raw === 'DF' || raw === '') {
+                            e.target.classList.remove('bg-red-200');
+                            return;
+                        }
+                        const value = parseFloat(raw);
+                        if (isNaN(value)) return;
                         const isOutOfRange = value < temp_min || value > temp_max;
                         e.target.classList.toggle('bg-red-200', isOutOfRange);
                         if (isOutOfRange) showWarningAlert("適温でない場合は必ず上長、もしくはメンテナンスセンター(0120-190-711)に連絡願います。\nメンテナンスセンターに連絡するときには、必ず店番と異常什器の型番、症状などを落ち着いて伝えてください");
@@ -1917,8 +1942,9 @@
                     const temp_min = parseFloat(itemInfo.temp_min);
                     const temp_max = parseFloat(itemInfo.temp_max);
                     const tempValue = parseFloat(check.temperature);
+                    const rawT = check.temperature != null ? String(check.temperature).trim() : '';
 
-                    if (!isNaN(tempValue) && (!isNaN(temp_min) && !isNaN(temp_max)) && (tempValue < temp_min || tempValue > temp_max)) {
+                    if (rawT !== 'DF' && !isNaN(tempValue) && (!isNaN(temp_min) && !isNaN(temp_max)) && (tempValue < temp_min || tempValue > temp_max)) {
                         issues.push({
                             text: `「${itemInfo.name}」が適温外 (${tempValue}℃)`,
                             category: '温度チェック',
