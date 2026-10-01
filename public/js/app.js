@@ -1467,7 +1467,9 @@
                 default: masterData = {};
             }
 
-            const currentOrder = storeSettings[currentState.store]?.[currentState.orderType] || [];
+            // 未設定時もチェック画面と同じ項目を表示する。保存済みの空配列はそのまま尊重する。
+            const defaultOrder = ['equipmentOrder', 'haccpOrder'].includes(currentState.orderType) ? Object.keys(masterData) : [];
+            const currentOrder = storeSettings[currentState.store]?.[currentState.orderType] ?? defaultOrder;
             const currentOrderSet = new Set(currentOrder);
             
             const activeIds = currentOrder.filter(id => masterData[id]);

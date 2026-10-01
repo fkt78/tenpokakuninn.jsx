@@ -149,6 +149,115 @@ const layout = `
         await page.mouse.up();
         assert.deepEqual(await order(), ['t2', 't0', 't1'], 'mouse handle drag');
         assert.deepEqual(errors, [], 'no uncaught browser errors');
+
+        if (process.argv.includes('--all-screens')) {
+            await page.addScriptTag({ content: `
+                window.testConfigureScreen = ({category, orderType, mode = 'configured'}) => {
+                    hideModal('order-modal');
+                    finishChecklistDraft();
+                    localStorage.clear();
+                    const fixture = Object.fromEntries(Array.from({length:25}, (_, i) => ['t'+i, {name:'確認項目 '+(i+1), temp_min:0, temp_max:10}]));
+                    equipmentMaster = fixture; haccpMaster = fixture; toiletMaster = fixture; handoverTaskMaster = fixture;
+                    const settings = Object.fromEntries(['equipmentOrder','haccpOrder','toiletLargeStallOrder','toiletSmallStallOrder','handover1Order','handover2Order'].map(key => [key, Object.keys(fixture)]));
+                    if (mode === 'unset') delete settings[orderType];
+                    if (mode === 'empty') settings[orderType] = [];
+                    if (mode === 'single') settings[orderType] = ['t0'];
+                    storeSettings = {'test-store':settings};
+                    currentState.category = category;
+                    renderChecklistView(category);
+                    showLoading(false);
+                    window.testWrites = [];
+                };
+                window.testAllSettings = () => storeSettings['test-store'];
+            ` });
+            const screens = [
+                {category:'温度チェック', orderType:'equipmentOrder', selector:'#checklist-container [data-equipment-id]', key:'equipmentId'},
+                {category:'HACCPチェック', orderType:'haccpOrder', selector:'#checklist-container [data-item-id]', key:'itemId'},
+                {category:'トイレ掃除', orderType:'toiletLargeStallOrder', choice:'#modal-edit-large-stall-btn', selector:'[data-section="個室大"] input[data-task-id]', key:'taskId'},
+                {category:'トイレ掃除', orderType:'toiletSmallStallOrder', choice:'#modal-edit-small-stall-btn', selector:'[data-section="個室小"] input[data-task-id]', key:'taskId'},
+                {category:'引き継ぎチェック', orderType:'handover1Order', choice:'#modal-edit-handover-1-btn', selector:'[data-order-type="handover1Order"] input[data-task-id]', key:'taskId'},
+                {category:'引き継ぎチェック', orderType:'handover2Order', choice:'#modal-edit-handover-2-btn', selector:'[data-order-type="handover2Order"] input[data-task-id]', key:'taskId'},
+            ];
+            async function openFromScreen(screen) {
+                await page.locator('.open-order-settings-btn').tap();
+                if (screen.choice) await page.locator(screen.choice).tap();
+            }
+            const visibleOrder = screen => page.locator(screen.selector).evaluateAll((items, key) => items.map(item => item.dataset[key]), screen.key);
+            for (const viewport of [{width:1024,height:768}, {width:820,height:1180}]) {
+                await page.setViewportSize(viewport);
+                for (const screen of screens) {
+                    await page.evaluate(screen => window.testConfigureScreen(screen), screen);
+                    const initialSettings = await page.evaluate(() => window.testAllSettings());
+                    const screenOrder = await visibleOrder(screen);
+                    assert.equal(screenOrder.length, 25);
+                    if (screen.orderType === 'equipmentOrder') await page.locator('[data-equipment-id="t0"] [data-field="temperature"]').selectOption('3.0');
+                    if (screen.orderType === 'haccpOrder') await page.locator('[data-item-id="t0"] [data-field="status"]').selectOption('実施');
+                    await openFromScreen(screen);
+                    assert.deepEqual(await order(), screenOrder, 'settings matches visible checklist');
+                    const scrollRow = await page.locator('#active-list > [data-id]').nth(3).boundingBox();
+                    await swipe(scrollRow.x + scrollRow.width / 2, scrollRow.y + scrollRow.height / 2, scrollRow.y - 140);
+                    await page.waitForTimeout(100);
+                    assert.ok(await scrollTop() > 0, 'ordinary scroll works on every screen');
+                    assert.deepEqual(await order(), screenOrder, 'ordinary scroll must not reorder');
+                    await page.locator('#cancel-order-btn').tap();
+                    await openFromScreen(screen);
+                    await page.locator('.move-item-down-btn').first().tap();
+                    assert.deepEqual((await order()).slice(0, 3), ['t1','t0','t2']);
+                    await page.locator('[data-id="t0"] .move-item-up-btn').tap();
+                    assert.deepEqual(await order(), screenOrder);
+                    const grip = await page.locator('.order-drag-handle').first().boundingBox();
+                    const target = await page.locator('#active-list > [data-id]').nth(2).boundingBox();
+                    await swipe(grip.x + grip.width / 2, grip.y + grip.height / 2, target.y + target.height - 4);
+                    assert.deepEqual((await order()).slice(0, 3), ['t1','t2','t0']);
+                    await page.locator('.remove-item-btn').first().tap();
+                    assert.equal((await order()).length, 24);
+                    await page.locator('#available-list .add-item-btn').first().tap();
+                    assert.equal((await order()).at(-1), 't1');
+                    const expected = await order();
+                    await page.locator('#save-order-btn').tap();
+                    await page.waitForSelector('#order-modal', {state:'detached'});
+                    assert.deepEqual(await visibleOrder(screen), expected, 'checklist reflects saved order');
+                    const settings = await page.evaluate(() => window.testAllSettings());
+                    assert.deepEqual(settings, {...initialSettings, [screen.orderType]:expected}, 'other sections remain unchanged');
+                    const writes = await page.evaluate(() => window.testWrites);
+                    assert.equal(writes.length, 1);
+                    assert.deepEqual(writes[0].payload, {[screen.orderType]:expected});
+                    if (screen.orderType === 'equipmentOrder') assert.equal(await page.locator('[data-equipment-id="t0"] [data-field="temperature"]').inputValue(), '3.0', 'temperature draft survives order save');
+                    if (screen.orderType === 'haccpOrder') assert.equal(await page.locator('[data-item-id="t0"] [data-field="status"]').inputValue(), '実施', 'HACCP draft survives order save');
+                    await openFromScreen(screen);
+                    assert.deepEqual(await order(), expected, 'saved order persists on reopening');
+                    await page.locator('#cancel-order-btn').tap();
+                    console.log('PASS screen:', screen.category, screen.orderType, viewport.width + 'x' + viewport.height);
+                }
+            }
+            for (const mode of ['single','empty','unset']) {
+                for (const screen of screens) {
+                    await page.evaluate(screen => window.testConfigureScreen(screen), {...screen, mode});
+                    const displayed = await visibleOrder(screen);
+                    await openFromScreen(screen);
+                    assert.deepEqual(await order(), displayed, screen.orderType + ': ' + mode + ' settings must match the checklist');
+                    if (mode === 'single') {
+                        assert.equal(await page.locator('.move-item-up-btn').first().isDisabled(), true);
+                        assert.equal(await page.locator('.move-item-down-btn').first().isDisabled(), true);
+                        await page.locator('.remove-item-btn').first().tap();
+                        assert.deepEqual(await order(), []);
+                    }
+                    if (!(await order()).length) {
+                        await page.locator('#available-list [data-id="t0"] .add-item-btn').tap();
+                        assert.deepEqual(await order(), ['t0']);
+                    }
+                    if (mode === 'unset' && displayed.length) {
+                        await page.locator('#save-order-btn').tap();
+                        await page.waitForSelector('#order-modal', {state:'detached'});
+                        assert.deepEqual(await visibleOrder(screen), displayed, 'first save must not hide default checklist items');
+                    } else {
+                        await page.locator('#cancel-order-btn').tap();
+                    }
+                    console.log('PASS edge:', screen.orderType, mode);
+                }
+            }
+            assert.deepEqual(errors, [], 'no browser errors across all screens');
+        }
         if (process.env.DHDAPP_TEST_SCREENSHOT) {
             await page.setViewportSize({ width: 820, height: 1180 });
             await page.evaluate(() => window.openTestOrder());
