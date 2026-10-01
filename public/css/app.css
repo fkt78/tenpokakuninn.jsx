@@ -410,11 +410,54 @@
         
         /* ドラッグ＆ドロップ用スタイル */
         .sortable-item { 
-            cursor: grab; 
-            user-select: none; 
+            gap: 8px;
+            touch-action: pan-y;
         }
-        .sortable-item:active { 
-            cursor: grabbing; 
+        .order-item-name {
+            flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        .order-item-controls {
+            display: flex;
+            flex-shrink: 0;
+            gap: 4px;
+        }
+        .order-drag-handle, .order-move-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            min-width: 44px;
+            min-height: 44px;
+            border: none;
+            border-radius: 10px;
+            font-size: 22px;
+        }
+        .order-drag-handle {
+            background: transparent;
+            color: var(--hig-label-secondary);
+            cursor: grab;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        .order-drag-handle:active {
+            cursor: grabbing;
+        }
+        .order-move-btn {
+            color: var(--hig-tint);
+            background: var(--hig-grouped-bg);
+            cursor: pointer;
+        }
+        .order-move-btn:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+        .order-drag-handle:focus-visible, .order-move-btn:focus-visible {
+            outline: 2px solid var(--hig-tint);
+            outline-offset: 2px;
         }
         .sortable-ghost { 
             opacity: 0.45; 

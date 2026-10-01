@@ -2,6 +2,8 @@
   "name": "tenpo-hikitugi-kakunin",
   "private": true,
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:touch": "node tests/order-touch.browser.cjs",
     "version:major": "node scripts/manage-version.mjs bump major",
     "version:minor": "node scripts/manage-version.mjs bump minor",
     "version:patch": "node scripts/manage-version.mjs bump patch"

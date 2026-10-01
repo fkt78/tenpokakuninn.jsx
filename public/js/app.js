@@ -319,7 +319,7 @@
         
         function createModal(id, title, content, buttons) {
             const existingModal = document.getElementById(id);
-            if(existingModal) existingModal.remove();
+            if (existingModal) hideModal(id);
 
             const modal = document.createElement('div');
             modal.id = id;
@@ -353,10 +353,15 @@
             return modal;
         }
 
-        function hideModal(modalId) { document.getElementById(modalId)?.remove(); }
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal?.cleanupOrderDrag?.();
+            modal?.remove();
+        }
         
         // --- 画面描画 ---
         function renderChecklistView(category, highlightInfo = null) {
+            finishChecklistDraft();
             const checklistView = document.getElementById('checklist-view');
             const mainAppView = document.getElementById('main-app-view');
             mainAppView.style.display = 'none';
@@ -398,12 +403,19 @@
             renderFunctions[category]?.(highlightInfo);
 
             if (category === '温度チェック' || category === 'HACCPチェック') {
+                // 入力欄の所有者を固定する。画面遷移後の currentState で保存先を変えない。
+                checklistDraftContext = {
+                    category,
+                    container: document.getElementById('checklist-container'),
+                    key: `${DRAFT_STORAGE_PREFIX}:${currentState.store}:${currentState.staff}:${category}:${getBusinessDateString()}`,
+                };
                 restoreChecklistDraft();
                 attachChecklistDraftListeners();
             }
         }
 
         function backToMainView() {
+            finishChecklistDraft();
             document.getElementById('checklist-view').style.display = 'none';
             document.getElementById('dashboard-view').style.display = 'none';
             document.getElementById('main-app-view').style.display = 'block';
@@ -550,10 +562,10 @@
         // --- チェックリスト下書き（localStorage）・保存前バリデーション ---
         const DRAFT_STORAGE_PREFIX = 'tenpo-check-draft';
         let draftSaveTimer = null;
+        let checklistDraftContext = null;
 
         function draftStorageKey() {
-            const d = getBusinessDateString();
-            return `${DRAFT_STORAGE_PREFIX}:${currentState.store}:${currentState.staff}:${currentState.category}:${d}`;
+            return checklistDraftContext?.key ?? null;
         }
 
         function collectTempDraftState() {
@@ -578,26 +590,33 @@
         }
 
         function persistDraftPayload(payload) {
+            const key = draftStorageKey();
+            if (!key) return;
             try {
-                localStorage.setItem(draftStorageKey(), JSON.stringify(payload));
+                localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
                 console.warn('下書き保存に失敗:', e);
             }
         }
 
         function flushDraftSaveSync() {
-            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
-            if (!document.getElementById('checklist-container')) return;
             clearTimeout(draftSaveTimer);
-            if (currentState.category === '温度チェック') {
+            draftSaveTimer = null;
+            if (!checklistDraftContext || checklistDraftContext.container !== document.getElementById('checklist-container')) return;
+            if (checklistDraftContext.category === '温度チェック') {
                 persistDraftPayload({ v: 1, kind: 'temp', checks: collectTempDraftState() });
-            } else if (currentState.category === 'HACCPチェック') {
+            } else if (checklistDraftContext.category === 'HACCPチェック') {
                 persistDraftPayload({ v: 1, kind: 'haccp', checks: collectHaccpDraftState() });
             }
         }
 
+        function finishChecklistDraft() {
+            flushDraftSaveSync();
+            checklistDraftContext = null;
+        }
+
         function scheduleDraftSave() {
-            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
+            if (!checklistDraftContext) return;
             clearTimeout(draftSaveTimer);
             draftSaveTimer = setTimeout(flushDraftSaveSync, 450);
         }
@@ -672,7 +691,8 @@
         }
 
         function restoreChecklistDraft() {
-            if (!['温度チェック', 'HACCPチェック'].includes(currentState.category)) return;
+            if (!checklistDraftContext) return;
+            const category = checklistDraftContext.category;
             let raw;
             try {
                 raw = localStorage.getItem(draftStorageKey());
@@ -687,14 +707,14 @@
                 return;
             }
             const toastKey = `tenpo-draft-toast:${draftStorageKey()}`;
-            if (data.kind === 'temp' && currentState.category === '温度チェック' && Array.isArray(data.checks)) {
+            if (data.kind === 'temp' && category === '温度チェック' && Array.isArray(data.checks)) {
                 if (!tempDraftHasAnyValue(data.checks)) return;
                 applyTempDraft(data.checks);
                 if (!sessionStorage.getItem(toastKey)) {
                     sessionStorage.setItem(toastKey, '1');
                     showAppAlert('保存前の入力を復元しました', true);
                 }
-            } else if (data.kind === 'haccp' && currentState.category === 'HACCPチェック' && Array.isArray(data.checks)) {
+            } else if (data.kind === 'haccp' && category === 'HACCPチェック' && Array.isArray(data.checks)) {
                 if (!haccpDraftHasAnyValue(data.checks)) return;
                 applyHaccpDraft(data.checks);
                 if (!sessionStorage.getItem(toastKey)) {
@@ -705,8 +725,12 @@
         }
 
         function clearChecklistDraft() {
+            clearTimeout(draftSaveTimer);
+            draftSaveTimer = null;
+            const key = draftStorageKey();
+            if (!key) return;
             try {
-                localStorage.removeItem(draftStorageKey());
+                localStorage.removeItem(key);
             } catch (e) { /* ignore */ }
         }
 
@@ -843,8 +867,8 @@
         
         // --- 履歴機能 ---
         function showHistory() {
-            const date = new Date();
-            renderCalendarModal(date);
+            const [year, month] = getBusinessDateString().split('-').map(Number);
+            renderCalendarModal(new Date(year, month - 1, 1));
         }
 
         function renderCalendarModal(date) {
@@ -859,15 +883,13 @@
                 <div id="calendar-body" class="grid grid-cols-7 gap-1 text-center"></div>
             `;
             const buttons = [{ id: 'calendar-close-btn', text: '閉じる', classes: 'hig-btn-secondary', onClick: () => hideModal('calendar-modal')}];
-            createModal('calendar-modal', `${currentState.category} の履歴`, content, buttons);
+            createModal('calendar-modal', `${currentState.category} の履歴（営業日・朝${BUSINESS_DAY_START_HOUR}:00切替）`, content, buttons);
             
             document.getElementById('prev-month-btn').addEventListener('click', () => {
-                date.setMonth(date.getMonth() - 1);
-                renderCalendarModal(date);
+                renderCalendarModal(new Date(year, month - 1, 1));
             });
             document.getElementById('next-month-btn').addEventListener('click', () => {
-                date.setMonth(date.getMonth() + 1);
-                renderCalendarModal(date);
+                renderCalendarModal(new Date(year, month + 1, 1));
             });
 
             generateCalendar(year, month);
@@ -893,7 +915,7 @@
             const logs = await fetchLogsForMonth(year, month);
             const logsByDate = {};
             logs.forEach(log => {
-                const date = log.createdAt.toDate().getDate();
+                const date = getBusinessDateString(log.createdAt.toDate());
                 if (!logsByDate[date]) {
                     logsByDate[date] = [];
                 }
@@ -901,6 +923,7 @@
             });
 
             for (let date = 1; date <= lastDate; date++) {
+                const dateKey = formatLocalYMD(new Date(year, month, date));
                 const dayCell = document.createElement('div');
                 dayCell.className = "calendar-day p-2 border rounded-md h-20 flex flex-col";
                 
@@ -909,15 +932,15 @@
                 dateNum.textContent = date;
                 dayCell.appendChild(dateNum);
 
-                if (logsByDate[date]) {
+                if (logsByDate[dateKey]) {
                     dayCell.classList.add('has-log');
                     const logCount = document.createElement('span');
                     logCount.className = 'mt-auto text-xs font-semibold text-white rounded-full px-2 py-1 self-center';
                     logCount.style.background = 'var(--hig-tint)';
-                    logCount.textContent = `${logsByDate[date].length}件`;
+                    logCount.textContent = `${logsByDate[dateKey].length}件`;
                     dayCell.appendChild(logCount);
 
-                    dayCell.addEventListener('click', () => showLogsForDay(new Date(year, month, date), logsByDate[date]));
+                    dayCell.addEventListener('click', () => showLogsForDay(new Date(year, month, date), logsByDate[dateKey]));
                 }
                 calendarBody.appendChild(dayCell);
             }
@@ -928,20 +951,21 @@
             const logCategory = categoryToLogType[currentState.category];
             if (!logCategory) return [];
 
-            const startDate = Timestamp.fromDate(new Date(year, month, 1));
-            const endDate = Timestamp.fromDate(new Date(year, month + 1, 0, 23, 59, 59));
+            // 月末営業日は翌月1日の朝5時直前まで。上限を含めず端数秒も取得する。
+            const startDate = Timestamp.fromDate(new Date(year, month, 1, BUSINESS_DAY_START_HOUR));
+            const endDate = Timestamp.fromDate(new Date(year, month + 1, 1, BUSINESS_DAY_START_HOUR));
 
             let allLogs = [];
             try {
                 if (logCategory === 'handover') {
-                    const q1 = query(collectionGroup(db, 'handover1Order'), where('storeId', '==', currentState.store), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate));
-                    const q2 = query(collectionGroup(db, 'handover2Order'), where('storeId', '==', currentState.store), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate));
+                    const q1 = query(collectionGroup(db, 'handover1Order'), where('storeId', '==', currentState.store), where('createdAt', '>=', startDate), where('createdAt', '<', endDate));
+                    const q2 = query(collectionGroup(db, 'handover2Order'), where('storeId', '==', currentState.store), where('createdAt', '>=', startDate), where('createdAt', '<', endDate));
                     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
                     const logs1 = snap1.docs.map(d => ({...d.data(), id: d.id}));
                     const logs2 = snap2.docs.map(d => ({...d.data(), id: d.id}));
                     allLogs = [...logs1, ...logs2];
                 } else {
-                    const q = query(collectionGroup(db, 'entries'), where('storeId', '==', currentState.store), where('logCategory', '==', logCategory), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate));
+                    const q = query(collectionGroup(db, 'entries'), where('storeId', '==', currentState.store), where('logCategory', '==', logCategory), where('createdAt', '>=', startDate), where('createdAt', '<', endDate));
                     const snapshot = await getDocs(q);
                     allLogs = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
                 }
@@ -1069,6 +1093,13 @@
                         <td class="p-2 ${statusClass}">${check.status || '未入力'}</td>
                         <td class="p-2">${check.timeSlot || '未入力'}</td>
                         <td class="p-2">${checkedStaffName}</td>
+                     </tr>
+                     <tr class="border-b"><td colspan="4" class="p-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <p><strong>異常時の処置:</strong> ${escapeHtml(check.action || '未入力')}</p>
+                            <p><strong>連絡先:</strong> ${escapeHtml(check.contact || '未入力')}</p>
+                        </div>
+                     </td>
                      </tr>`;
                  });
                  detailHTML += `</tbody></table>`;
@@ -1279,7 +1310,7 @@
             const content = `<div id="order-list-container" class="space-y-4">
                                 <div>
                                     <h4 class="text-md font-semibold text-gray-700 mb-2">表示する項目</h4>
-                                    <p class="text-xs text-gray-500 mb-2">ドラッグで並び替えができます。</p>
+                                    <p class="text-xs text-gray-500 mb-2">「↑」「↓」で移動できます。左端のつまみをドラッグしても並び替えできます。</p>
                                     <div id="active-list" class="p-3 border border-black/10 rounded-[10px] min-h-[120px] bg-[rgba(0,122,255,0.08)] space-y-2"></div>
                                 </div>
                                 <div class="my-4 border-t-2 border-dashed"></div>
@@ -1293,7 +1324,7 @@
                 { id: 'cancel-order-btn', text: '戻る', classes: 'hig-btn-secondary', onClick: () => hideModal('order-modal')},
                 { id: 'save-order-btn', text: 'この並び順で保存', classes: 'hig-btn-primary', onClick: saveOrder}
             ];
-            createModal('order-modal', title, content, buttons);
+            const modal = createModal('order-modal', title, content, buttons);
             
             populateOrderLists();
 
@@ -1319,51 +1350,111 @@
                     activeIds = activeIds.filter(i => i !== id);
                     availableIds.push(id);
                     renderOrderLists(activeIds, availableIds);
+                } else if (target.classList.contains('move-item-up-btn')) {
+                    const previous = item.previousElementSibling;
+                    if (previous) activeList.insertBefore(item, previous);
+                    updateOrderMoveButtons(activeList);
+                    item.scrollIntoView({ block: 'nearest' });
+                } else if (target.classList.contains('move-item-down-btn')) {
+                    const next = item.nextElementSibling;
+                    if (next) activeList.insertBefore(next, item);
+                    updateOrderMoveButtons(activeList);
+                    item.scrollIntoView({ block: 'nearest' });
                 }
             });
 
             const activeList = document.getElementById('active-list');
-            activeList.addEventListener('dragstart', e => { if (e.target.closest('.sortable-item')) e.target.closest('.sortable-item').classList.add('sortable-ghost'); });
-            activeList.addEventListener('dragend', e => { if (e.target.closest('.sortable-item')) e.target.closest('.sortable-item').classList.remove('sortable-ghost'); });
-            activeList.addEventListener('dragover', e => {
-                e.preventDefault();
-                const draggingItem = document.querySelector('.sortable-ghost');
-                if (!draggingItem) return;
-                const afterElement = getDragAfterElement(activeList, e.clientY);
-                if (afterElement == null) activeList.appendChild(draggingItem);
-                else activeList.insertBefore(draggingItem, afterElement);
+            const scrollContainer = modal.querySelector('.overflow-y-auto');
+            modal.cleanupOrderDrag = setupOrderDragging(activeList, scrollContainer);
+        }
+
+        function updateOrderMoveButtons(activeList) {
+            const items = [...activeList.children];
+            items.forEach((item, index) => {
+                item.querySelector('.move-item-up-btn').disabled = index === 0;
+                item.querySelector('.move-item-down-btn').disabled = index === items.length - 1;
             });
-            activeList.addEventListener('touchstart', e => {
-                const draggingItem = e.target.closest('.sortable-item');
-                if (!draggingItem) return;
-                
-                e.preventDefault();
-                draggingItem.classList.add('sortable-ghost');
+        }
 
-                const touchMoveHandler = (moveEvent) => {
-                    moveEvent.preventDefault();
-                    const touch = moveEvent.touches[0];
-                    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('#active-list');
+        function setupOrderDragging(activeList, scrollContainer) {
+            let drag = null;
+            let frameId = null;
 
-                    if (dropTarget) {
-                         const afterElement = getDragAfterElement(dropTarget, touch.clientY);
-                         if (afterElement == null) {
-                             dropTarget.appendChild(draggingItem);
-                         } else {
-                             dropTarget.insertBefore(draggingItem, afterElement);
-                         }
+            function moveItem() {
+                if (!drag?.moved) return;
+                const bounds = activeList.getBoundingClientRect();
+                if (drag.x < bounds.left || drag.x > bounds.right) return;
+                const after = getDragAfterElement(activeList, drag.y);
+                if (after) activeList.insertBefore(drag.item, after);
+                else activeList.appendChild(drag.item);
+                updateOrderMoveButtons(activeList);
+            }
+
+            function autoScroll() {
+                if (!drag) return;
+                if (drag.moved) {
+                    const bounds = scrollContainer.getBoundingClientRect();
+                    const edge = 48;
+                    let step = 0;
+                    if (drag.x >= bounds.left && drag.x <= bounds.right) {
+                        if (drag.y < bounds.top + edge) step = -Math.min(16, (bounds.top + edge - drag.y) / 3);
+                        else if (drag.y > bounds.bottom - edge) step = Math.min(16, (drag.y - bounds.bottom + edge) / 3);
                     }
-                };
+                    if (step) {
+                        scrollContainer.scrollTop += step;
+                        moveItem();
+                    }
+                }
+                frameId = requestAnimationFrame(autoScroll);
+            }
 
-                const touchEndHandler = () => {
-                    draggingItem.classList.remove('sortable-ghost');
-                    document.removeEventListener('touchmove', touchMoveHandler);
-                    document.removeEventListener('touchend', touchEndHandler);
-                };
+            function finishDrag(cancelled = false) {
+                if (!drag) return;
+                const finished = drag;
+                drag = null;
+                cancelAnimationFrame(frameId);
+                frameId = null;
+                if (cancelled) finished.originalItems.forEach(item => activeList.appendChild(item));
+                finished.item.classList.remove('sortable-ghost');
+                updateOrderMoveButtons(activeList);
+                if (activeList.hasPointerCapture(finished.pointerId)) activeList.releasePointerCapture(finished.pointerId);
+            }
 
-                document.addEventListener('touchmove', touchMoveHandler, { passive: false });
-                document.addEventListener('touchend', touchEndHandler, { passive: false });
-            }, { passive: false });
+            function pointerDown(event) {
+                const handle = event.target.closest('.order-drag-handle');
+                if (!handle || event.button !== 0 || event.isPrimary === false || drag) return;
+                const item = handle.closest('.sortable-item');
+                if (!item || item.parentElement !== activeList) return;
+                event.preventDefault();
+                handle.focus({ preventScroll: true });
+                drag = { item, pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+                    startX: event.clientX, startY: event.clientY, moved: false, originalItems: [...activeList.children] };
+                item.classList.add('sortable-ghost');
+                // Capture on the stationary list: reordering the row must not lose the touch.
+                activeList.setPointerCapture(event.pointerId);
+                frameId = requestAnimationFrame(autoScroll);
+            }
+
+            function pointerMove(event) {
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                event.preventDefault();
+                drag.x = event.clientX;
+                drag.y = event.clientY;
+                drag.moved ||= Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 5;
+                moveItem();
+            }
+
+            function pointerEnd(event) {
+                if (drag && event.pointerId === drag.pointerId) finishDrag(event.type !== 'pointerup');
+            }
+
+            const listeners = { pointerdown: pointerDown, pointermove: pointerMove,
+                pointerup: pointerEnd, pointercancel: pointerEnd, lostpointercapture: pointerEnd };
+            Object.entries(listeners).forEach(([type, listener]) => activeList.addEventListener(type, listener));
+            return () => {
+                finishDrag(true);
+                Object.entries(listeners).forEach(([type, listener]) => activeList.removeEventListener(type, listener));
+            };
         }
 
         function populateOrderLists() {
@@ -1406,15 +1497,18 @@
                 if (!item) return;
                 const div = document.createElement('div');
                 div.className = 'sortable-item hig-sortable-item p-3 bg-white border border-black/10 shadow-sm flex items-center justify-between';
-                div.draggable = true;
                 div.dataset.id = id;
-                div.innerHTML = `<div class="flex items-center flex-grow">
-                                    <i class="fas fa-grip-vertical text-gray-400 mr-3 cursor-grab"></i>
-                                    <span class="flex-grow text-left">${item.name}</span>
-                                 </div>
-                                 <button type="button" class="remove-item-btn inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-[#ff3b30] hover:opacity-80 rounded-[10px]"><i class="fas fa-minus-circle text-lg"></i></button>`;
+                const name = escapeHtml(item.name || '項目');
+                div.innerHTML = `<button type="button" class="order-drag-handle" aria-label="${name}をドラッグして移動"><span aria-hidden="true">⠿</span></button>
+                                 <span class="order-item-name">${name}</span>
+                                 <div class="order-item-controls">
+                                    <button type="button" class="order-move-btn move-item-up-btn" aria-label="${name}を上へ">↑</button>
+                                    <button type="button" class="order-move-btn move-item-down-btn" aria-label="${name}を下へ">↓</button>
+                                    <button type="button" class="remove-item-btn inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-[#ff3b30] hover:opacity-80 rounded-[10px]" aria-label="${name}を非表示にする"><i class="fas fa-minus-circle text-lg" aria-hidden="true"></i></button>
+                                 </div>`;
                 activeList.appendChild(div);
             });
+            updateOrderMoveButtons(activeList);
 
             availableIds.sort((a, b) => masterData[a].name.localeCompare(masterData[b].name, 'ja')).forEach(id => {
                 const item = masterData[id];
@@ -1792,6 +1886,7 @@
          * ダッシュボード画面を初期描画する
          */
         function renderDashboardView() {
+            finishChecklistDraft();
             const dashboardView = document.getElementById('dashboard-view');
             const mainAppView = document.getElementById('main-app-view');
             const checklistView = document.getElementById('checklist-view');
@@ -2131,4 +2226,3 @@
         
         // --- 初期化処理の実行 ---
         initializeApplication();
-
